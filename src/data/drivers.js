@@ -101,3 +101,9 @@ export function validateForDriver(driver, addr) {
 //   [영역▼][숫자] 로 입력받고, 크기문자(X/W/D)는 태그 타입에서 자동(ls 변환)
 export const driverAreas = driver =>
   (Array.isArray(driver?.addr?.areas) && driver.addr.areas.length) ? driver.addr.areas : null
+
+// 저장된 주소 문자열 → { area, num } 역파싱 ("%MW100" → {area:'M', num:'100'})
+export const parseAreaAddr = v => {
+  const m = /^%?([A-Z]+?)[XBWDL]?([0-9.]+)?$/.exec(String(v).trim().toUpperCase())
+  return { area: m?.[1] || '', num: m?.[2] || '' }
+}

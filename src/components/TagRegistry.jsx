@@ -1,16 +1,11 @@
 import { useRef, useState, useEffect } from 'react'
-import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy, Boxes, FolderOpen, Folder, FolderMinus } from 'lucide-react'
+import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy, Boxes, FolderOpen, Folder, FolderMinus, Pencil } from 'lucide-react'
 import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice, assignVirtualAddresses } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress, applyType } from '../utils/plcAddress'
-import { driverForDevice, normalizeForDriver, validateForDriver, driverAreas } from '../data/drivers'
-
-// 영역 드롭다운 드라이버 주소 파싱: "%MW100" → { area:'M', num:'100' } (크기문자 X/B/W/D/L 제거)
-const parseAreaAddr = v => {
-  const m = /^%?([A-Z]+?)[XBWDL]?([0-9.]+)?$/.exec(String(v).trim().toUpperCase())
-  return { area: m?.[1] || '', num: m?.[2] || '' }
-}
+import { driverForDevice, normalizeForDriver, validateForDriver, driverAreas, parseAreaAddr } from '../data/drivers'
 import GroupBuilder from './GroupBuilder'
+import TagEditDialog from './TagEditDialog'
 
 const TYPE_COLORS = { BIT: '#a78bfa', WORD: '#f59e0b', FLOAT: '#00d4ff' }
 const NONE_GROUP = '__none__'   // 그룹 미지정 태그
@@ -353,6 +348,7 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
   const [dupDevice, setDupDevice] = useState('')
   const [selectedGroup, setSelectedGroup] = useState('__all__')
   const [checkedIdxs, setCheckedIdxs] = useState(new Set())
+  const [editIdx, setEditIdx] = useState(null)   // null=닫힘, -1=새 태그, 그 외=tags 절대인덱스
 
   if (!open) return null
 
@@ -373,6 +369,22 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
     selectedGroup === '__all__' ? `전체 태그 (${tags.length}개)` :
     selectedGroup === NONE_GROUP ? `미지정 태그 (${filteredWithIdx.length}개)` :
     `${selectedGroup} (${filteredWithIdx.length}개)`
+
+  // ── 태그 편집 다이얼로그 (단일 태그 포커스) ──
+  const navList = filteredWithIdx.map(x => x.idx)          // 현재 필터의 절대 인덱스들
+  const editPos = editIdx >= 0 ? navList.indexOf(editIdx) : -1
+  const curGroup = (selectedGroup === '__all__' || selectedGroup === NONE_GROUP) ? '' : selectedGroup
+  const editTag = editIdx === -1
+    ? { type: 'BIT', utility: curGroup, device: devices[0]?.name || VIRTUAL_DEVICE }  // 새 태그 초안(실태그 기본)
+    : (editIdx >= 0 ? tags[editIdx] : null)
+  function handleDialogCommit(patch) {
+    if (editIdx === -1) onAddTag(makeTag(patch))
+    else if (editIdx >= 0) onUpdateTag(editIdx, patch)
+  }
+  function handleDialogNav(dir) {
+    const next = navList[editPos + dir]
+    if (next != null) setEditIdx(next)
+  }
 
   function openDup() {
     setDupSource(prev => prev || groups[0] || '')
@@ -528,10 +540,15 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
                 <Trash2 size={12} /> 선택 삭제 ({checkedIdxs.size})
               </button>
             )}
+            <button onClick={() => setEditIdx(-1)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#a78bfa] hover:bg-[#2d1b4e] transition-colors"
+              style={{ border: '1px solid #7c3aed' }} title="상세 편집 다이얼로그로 추가">
+              <Plus size={12} /> 상세 추가
+            </button>
             <button onClick={handleAddTag}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#00d4ff] hover:bg-[#0f2444] transition-colors"
-              style={{ border: '1px solid #1e40af' }}>
-              <Plus size={12} /> 태그 추가
+              style={{ border: '1px solid #1e40af' }} title="표에 빈 행 추가">
+              <Plus size={12} /> 빠른 추가
             </button>
           </div>
         </div>
@@ -622,13 +639,18 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
                           <input type="checkbox" checked={checked} onChange={() => toggleCheck(idx)}
                             style={{ accentColor: '#ef4444', cursor: 'pointer' }} />
                         </td>
-                        <td className="px-2 py-1 text-[9px] text-[#4a5568] font-mono text-center">{idx + 1}</td>
+                        <td className="px-2 py-1 text-[9px] text-[#4a5568] font-mono text-center cursor-pointer hover:text-[#a78bfa]"
+                          onDoubleClick={() => setEditIdx(idx)} title="더블클릭: 상세 편집">{idx + 1}</td>
                         {TAG_COLUMNS.map(col => (
                           <td key={col.key} className="px-1 py-1" style={{ width: colW[col.key], minWidth: colW[col.key], maxWidth: colW[col.key] }}>
                             <Cell tag={tag} col={col} index={idx} devices={devices} onChange={onUpdateTag} />
                           </td>
                         ))}
-                        <td className="px-1 py-1 text-center">
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <button onClick={() => setEditIdx(idx)} title="상세 편집"
+                            className="p-1 rounded hover:bg-[#2d1b4e] text-[#4a5568] hover:text-[#a78bfa] transition-colors">
+                            <Pencil size={12} />
+                          </button>
                           <button onClick={() => onDeleteTag(idx)} title="삭제"
                             className="p-1 rounded hover:bg-[#450a0a] text-[#4a5568] hover:text-[#ef4444] transition-colors">
                             <Trash2 size={12} />
@@ -662,6 +684,20 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
         onCreateGroup(groupName, device, members)
         setSelectedGroup(groupName)
       }} />
+
+    <TagEditDialog
+      open={editIdx !== null}
+      isNew={editIdx === -1}
+      tag={editTag}
+      groups={groups}
+      devices={devices}
+      pos={editPos >= 0 ? { cur: editPos, total: navList.length } : null}
+      canPrev={editPos > 0}
+      canNext={editPos >= 0 && editPos < navList.length - 1}
+      onCommit={handleDialogCommit}
+      onNav={handleDialogNav}
+      onClose={() => setEditIdx(null)}
+    />
     </>
   )
 }

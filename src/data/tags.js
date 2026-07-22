@@ -119,6 +119,7 @@ export function makeTag(p = {}) {
     digits: Math.max(0, toNumber(p.digits, 0)),
     value,
     ...(p.alarmHint ? { alarmHint: String(p.alarmHint) } : {}),
+    ...(p.note ? { note: String(p.note) } : {}),
   }
 }
 
