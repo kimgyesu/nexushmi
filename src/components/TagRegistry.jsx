@@ -3,7 +3,13 @@ import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy
 import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice, assignVirtualAddresses } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress, applyType } from '../utils/plcAddress'
-import { driverForDevice, normalizeForDriver, validateForDriver } from '../data/drivers'
+import { driverForDevice, normalizeForDriver, validateForDriver, driverAreas } from '../data/drivers'
+
+// 영역 드롭다운 드라이버 주소 파싱: "%MW100" → { area:'M', num:'100' } (크기문자 X/B/W/D/L 제거)
+const parseAreaAddr = v => {
+  const m = /^%?([A-Z]+?)[XBWDL]?([0-9.]+)?$/.exec(String(v).trim().toUpperCase())
+  return { area: m?.[1] || '', num: m?.[2] || '' }
+}
 import GroupBuilder from './GroupBuilder'
 
 const TYPE_COLORS = { BIT: '#a78bfa', WORD: '#f59e0b', FLOAT: '#00d4ff' }
@@ -18,7 +24,14 @@ function Cell({ tag, col, index, devices, onChange }) {
     const isVirtual = value === VIRTUAL_DEVICE
     const extra = value && !names.includes(value) && value !== VIRTUAL_DEVICE ? [value] : []
     return (
-      <select value={value} onChange={e => onChange(index, { device: e.target.value })}
+      <select value={value}
+        onChange={e => {
+          const newDev = e.target.value
+          const patch = { device: newDev }
+          // 가상→실 디바이스 전환 시 남은 가상(NB/ND) 주소는 비워 새 형식으로 입력
+          if (newDev && !isVirtualDevice(newDev) && /^N[BD]\d+$/i.test(String(tag.address || '').trim())) patch.address = ''
+          onChange(index, patch)
+        }}
         className="w-full text-[10px] font-mono rounded px-1 py-1 bg-[#0f172a] border focus:outline-none focus:border-[#1e40af]"
         style={{ borderColor: isVirtual ? '#7c3aed' : '#1e2a4a', color: isVirtual ? '#a78bfa' : '#94a3b8' }}>
         <option value="" style={{ background: '#0f172a', color: '#4a5568' }}>(선택)</option>
@@ -63,9 +76,9 @@ function Cell({ tag, col, index, devices, onChange }) {
   }
 
   if (col.key === 'address') {
-    // 가상 태그(또는 NB/ND 주소)는 XGT 변환 없이 그대로 — 자동 부여됨
+    // 가상 여부는 '디바이스' 기준으로만 판단 (실 디바이스면 NB/ND 잔여값이 있어도 실 형식으로)
     const isNBND = /^N[BD]\d+$/i.test(String(value).trim())
-    if (isVirtualDevice(tag.device) || isNBND) {
+    if (isVirtualDevice(tag.device)) {
       return (
         <div>
           <input type="text" value={value} spellCheck={false} placeholder="비우면 자동 (NB/ND)"
@@ -78,6 +91,29 @@ function Cell({ tag, col, index, devices, onChange }) {
     // 실 디바이스: 그 디바이스의 드라이버 형식으로 정규화·검증 (제조사별)
     const dev = devices.find(d => d.name === tag.device)
     const driver = driverForDevice(dev)
+    // 영역 드롭다운 드라이버: [영역▼][숫자] → 크기문자(X/W/D) 자동 → %[영역][크기][번호]
+    const areas = driverAreas(driver)
+    if (areas) {
+      const raw = isNBND ? '' : value    // 실 디바이스에 남은 가상(NB/ND) 값은 무시하고 새로 입력
+      const { area, num } = parseAreaAddr(raw)
+      const curArea = area || areas[0]
+      const compose = (a, n) => n ? normalizeForDriver(driver, `${a}${n}`, tag.type) : ''
+      return (
+        <div>
+          <div className="flex items-center gap-0.5">
+            <select value={curArea} onChange={e => onChange(index, { address: compose(e.target.value, num) })}
+              className="text-[10px] font-mono rounded px-0.5 py-1 focus:outline-none flex-shrink-0"
+              style={{ width: 46, background: '#111c33', border: '1px solid #1e2a4a', color: '#60a5fa' }} title="메모리 영역">
+              {areas.map(a => <option key={a} value={a} style={{ background: '#0f172a' }}>{a}</option>)}
+            </select>
+            <input type="text" inputMode="numeric" value={num} spellCheck={false} placeholder="숫자"
+              onChange={e => { const n = e.target.value.replace(/[^0-9.]/g, ''); onChange(index, { address: compose(curArea, n) }) }}
+              className="w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]" />
+          </div>
+          {raw && <div className="text-[8px] font-mono mt-0.5 text-[#22c55e]">✓ {value}</div>}
+        </div>
+      )
+    }
     const ok = validateForDriver(driver, value)
     const preview = normalizeForDriver(driver, value, tag.type)
     return (
@@ -213,6 +249,10 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
 
   const qCls = "w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0a1a0a] border border-[#22c55e] text-[#e2e8f0] placeholder-[#4ade80] focus:outline-none focus:border-[#86efac]"
   const grpLabel = (selectedGroup === '__all__' || selectedGroup === NONE_GROUP) ? '(전역)' : selectedGroup
+  // 주소 placeholder — 영역 드롭다운 드라이버면 영역+숫자 힌트
+  const qDriver = (!isVirtualDevice(form.device) && form.device) ? driverForDevice(devices.find(d => d.name === form.device)) : null
+  const qAreas = qDriver ? driverAreas(qDriver) : null
+  const addrPh = isVirtualDevice(form.device) ? '자동 NB/ND' : (qAreas ? `예: ${qAreas[0]}0, ${qAreas[1] || 'D'}100` : 'D100')
 
   return (
     <tr style={{ background: '#0d2010', borderBottom: '2px solid #22c55e' }}>
@@ -243,7 +283,7 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
       {/* col[4] address */}
       <td className="px-1 py-1" style={{ minWidth: 90 }}>
         <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-          onKeyDown={handleKeyDown} placeholder={isVirtualDevice(form.device) ? '자동 NB/ND' : 'D100'} className={qCls} />
+          onKeyDown={handleKeyDown} placeholder={addrPh} className={qCls} />
       </td>
       {/* col[5] type */}
       <td className="px-1 py-1" style={{ minWidth: 80 }}>

@@ -33,7 +33,7 @@ export const DRIVERS = [
     addr: { transform: 'raw', example: 'NB1 · ND1', hint: '비우면 자동(NB/ND)', validate: '^N[BD]\\d+$' }, defaults: {} },
 
   { id: 'ls-xgt', vendor: 'LS산전', name: 'LS XGT (XGB/XGK) · Cnet/FEnet', protocol: 'XGT Cnet (LS)', conn: 'serial',
-    addr: { transform: 'ls', bit: 'X', word: 'W', dword: 'D', example: 'M0 → %MX0 · D100 → %DW100', hint: '영역+번호 (M0, D100)', validate: '^%[A-Z]+[XBWDL][0-9.]+$' },
+    addr: { transform: 'ls', bit: 'X', word: 'W', dword: 'D', areas: ['M', 'D', 'P', 'K', 'F', 'T', 'C', 'L', 'N', 'R', 'U', 'Z'], example: 'M0 → %MX0 · D100 → %DW100', hint: '영역+번호 (M0, D100)', validate: '^%[A-Z]+[XBWDL][0-9.]+$' },
     defaults: { baud: 115200, parity: 'none', station: 1 } },
 
   { id: 'siemens-s7', vendor: 'Siemens', name: 'Siemens S7 (S7-1200/1500/200 Smart)', protocol: 'S7comm', conn: 'ethernet',
@@ -96,3 +96,8 @@ export function validateForDriver(driver, addr) {
   if (!re || !addr) return true
   try { return new RegExp(re, 'i').test(String(addr)) } catch { return true }
 }
+
+// 영역 드롭다운 드라이버: addr.areas(['M','D','R'…])가 있으면 태그 등록 UI가
+//   [영역▼][숫자] 로 입력받고, 크기문자(X/W/D)는 태그 타입에서 자동(ls 변환)
+export const driverAreas = driver =>
+  (Array.isArray(driver?.addr?.areas) && driver.addr.areas.length) ? driver.addr.areas : null
