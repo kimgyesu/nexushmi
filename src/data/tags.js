@@ -76,6 +76,21 @@ export function withVirtualAddress(tag, existingTags = []) {
   return { ...tag, address: nextVirtualAddress(existingTags, tag.type) }
 }
 
+// 전체 태그 배열에서 주소 없는 가상 태그에 NB/ND 일괄 부여 (기존 주소는 유지)
+// 반환: { tags: 새배열, count: 부여된 개수 }
+export function assignVirtualAddresses(tags = []) {
+  const acc = tags.slice()
+  let count = 0
+  const out = tags.map((t, i) => {
+    if (!isVirtualDevice(t.device) || (t.address && String(t.address).trim())) return t
+    const address = nextVirtualAddress(acc, t.type)
+    acc[i] = { ...t, address }
+    count++
+    return acc[i]
+  })
+  return { tags: out, count }
+}
+
 // 부분 데이터 → 정규화된 태그 객체
 export function makeTag(p = {}) {
   const type = TAG_TYPES.includes(String(p.type).toUpperCase())

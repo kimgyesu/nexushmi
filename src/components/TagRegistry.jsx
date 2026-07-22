@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy, Boxes, FolderOpen, Folder, FolderMinus } from 'lucide-react'
-import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice } from '../data/tags'
+import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice, assignVirtualAddresses } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress } from '../utils/plcAddress'
 import GroupBuilder from './GroupBuilder'
@@ -281,6 +281,13 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
     const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); document.body.style.cursor = '' }
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); document.body.style.cursor = 'col-resize'
   }
+  // 주소 없는 가상 태그에 NB/ND 일괄 부여
+  function handleAssignVirtual() {
+    const { tags: out, count } = assignVirtualAddresses(tags)
+    if (count === 0) { alert('주소를 부여할 가상 태그가 없습니다. (이미 모두 주소가 있거나 실 디바이스 태그예요)'); return }
+    onReplaceTags(out)
+    alert(`가상 태그 ${count}개에 NB/ND 주소를 부여했습니다.`)
+  }
   const [gbOpen, setGbOpen] = useState(false)
   const [dupOpen, setDupOpen] = useState(false)
   const [dupSource, setDupSource] = useState('')
@@ -448,6 +455,11 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] text-[#60a5fa] hover:bg-[#0f2444] transition-colors"
             style={{ border: '1px solid #1e40af' }}>
             <Cpu size={12} /> 디바이스 <span className="text-[#4a5568] ml-0.5">({devices.length})</span>
+          </button>
+          <button onClick={handleAssignVirtual} title="주소 없는 가상 태그에 NB/ND 자동 부여"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] text-[#a78bfa] hover:bg-[#2d1b4e] transition-colors"
+            style={{ border: '1px solid #7c3aed' }}>
+            🔮 가상주소 부여
           </button>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-[10px] text-[#4a5568]">{groupLabel}</span>
