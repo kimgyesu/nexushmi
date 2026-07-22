@@ -87,7 +87,7 @@ export default function Landing({ onStart }) {
 
 const CSS = `
 .nx-landing { --bg-dark:#070a12; --primary-glow:#00f2ff; --secondary-glow:#0066ff; --accent-green:#10b981; --card-bg:rgba(13,20,38,0.5); --card-border:rgba(0,242,255,0.15); --card-border-hover:rgba(0,242,255,0.4); --text-main:#f3f4f6; --text-sub:#9ca3af;
-  background-color:var(--bg-dark); color:var(--text-main); min-height:100vh; overflow-x:hidden; position:relative; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,Roboto,sans-serif; }
+  background-color:var(--bg-dark); color:var(--text-main); height:100vh; overflow-y:auto; overflow-x:hidden; position:relative; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,Roboto,sans-serif; }
 .nx-landing * { margin:0; padding:0; box-sizing:border-box; font-family:inherit; }
 .nx-landing .bg-glow { position:absolute; top:15%; left:50%; transform:translate(-50%,-50%); width:600px; height:350px; background:radial-gradient(ellipse at center, rgba(0,102,255,0.25) 0%, rgba(0,242,255,0.1) 40%, rgba(7,10,18,0) 70%); z-index:0; pointer-events:none; filter:blur(40px); }
 .nx-landing .bg-wave { position:absolute; top:28%; left:0; width:100%; height:300px; background:linear-gradient(90deg, transparent, rgba(0,242,255,0.05), rgba(0,102,255,0.08), transparent); transform:skewY(-4deg); z-index:0; pointer-events:none; }
