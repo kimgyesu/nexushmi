@@ -3,6 +3,8 @@ import { Sparkles, Send, User, RefreshCw, Square, ImagePlus, X,
   ShieldCheck, Wrench, AlertTriangle, Info, CheckCircle2, XCircle, Stethoscope } from 'lucide-react'
 import { getClaudeHealth, postClaude } from '../utils/api'
 import { inspectScreen, inspectionSummary, diagnoseElement } from '../utils/inspect'
+import { useAccess } from '../auth/access'
+import { Lock } from 'lucide-react'
 
 const MAX_IMG_BYTES = 5 * 1024 * 1024 // 5MB
 
@@ -821,6 +823,7 @@ export default function EditorAI({ tags, elements, screens, activeScreenId, devi
   const ctxRef = useRef({ tags, elements, screens, activeScreenId, devices, symbols, resolution, projectName, bindings, selectedIds, recipeSets, learnedProfile })
   ctxRef.current = { tags, elements, screens, activeScreenId, devices, symbols, resolution, projectName, bindings, selectedIds, recipeSets, learnedProfile }
 
+  const access = useAccess() // 무료 유저는 내부 AI 사용 불가
   const [status, setStatus] = useState('connecting') // connecting | ready | nokey | offline
   const [model, setModel] = useState('')
   const [messages, setMessages] = useState([{
@@ -881,6 +884,7 @@ export default function EditorAI({ tags, elements, screens, activeScreenId, devi
   }, [elements, bindings, tags])
 
   async function sendText(forcedText) {
+    if (!access.ai) return // 무료 유저 차단
     const text = (forcedText || input).trim()
     if (!text || busy || pendingResult) return
     if (status !== 'ready') { await checkHealth() }
@@ -1264,6 +1268,14 @@ ${lines || '(규칙 검수는 문제 없음)'}`
       <div className="px-3 py-3 border-t border-[#4c1d95] flex-shrink-0">
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
 
+        {!access.ai && !access.loading ? (
+          <div className="flex items-center gap-2 px-3 py-3 rounded-lg" style={{ background: '#1a1530', border: '1px solid #4c1d95', color: '#c4b5fd' }}>
+            <Lock size={14} className="flex-shrink-0" />
+            <span className="text-[11px] leading-snug">내부 AI는 <b className="text-[#ddd6fe]">오너 · 프리미엄 전용</b>입니다. 그리기 · 태그 · 시뮬레이션은 자유롭게 사용하세요.</span>
+          </div>
+        ) : (<></>)}
+        <div style={{ display: (!access.ai && !access.loading) ? 'none' : 'block' }}>
+
         {/* 첨부 미리보기 */}
         {attachment && (
           <div className="flex items-center gap-2 mb-2 p-1.5 rounded bg-[#1a1530] border border-[#4c1d95]">
@@ -1306,6 +1318,7 @@ ${lines || '(규칙 검수는 문제 없음)'}`
           )}
         </div>
         <p className="text-[8px] text-[#2d1b4e] mt-1 text-center">{model ? `${model} · ` : ''}편집창 전용 · Claude API</p>
+        </div>
       </div>
     </aside>
   )

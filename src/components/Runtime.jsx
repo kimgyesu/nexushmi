@@ -9,7 +9,8 @@ import { loadProject } from '../data/project'
 import { RENDERERS, resolveTag, tagAlarmLevel, elementBBox } from './ScadaCanvas'
 import RuntimeAI from './RuntimeAI'
 import ChartViewer from './ChartViewer'
-import { MonitorPlay, Wifi, Clock, Bell, X, Database, LineChart } from 'lucide-react'
+import { MonitorPlay, Wifi, Clock, Bell, X, Database, LineChart, Lock } from 'lucide-react'
+import { useAccess } from '../auth/access'
 
 /* 실행(런타임) 화면 — 운전자 모니터링 뷰
    - 편집 기능 없음 (팔레트/인스펙터/드래그 없음)
@@ -18,6 +19,21 @@ export default function Runtime() {
   const project = useRef(
     loadProject() ?? { name: '(빈 프로젝트)', tags: [], elements: [], bindings: {} }
   ).current
+
+  // 무료 유저 실행 시간 제한 (오너 무제한)
+  const access = useAccess()
+  const [expired, setExpired] = useState(false)
+  const [leftSec, setLeftSec] = useState(null)
+  useEffect(() => {
+    if (access.loading || access.runtimeMinutes === Infinity) return
+    const endAt = Date.now() + access.runtimeMinutes * 60 * 1000
+    const id = setInterval(() => {
+      const s = Math.max(0, Math.round((endAt - Date.now()) / 1000))
+      setLeftSec(s)
+      if (s <= 0) { setExpired(true); clearInterval(id) }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [access.loading, access.runtimeMinutes])
 
   // 런타임도 자체 태그 상태를 소유하고 값을 시뮬레이션
   const [tags, setTags] = useState(project.tags ?? [])
@@ -227,6 +243,22 @@ export default function Runtime() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ background: '#0a0e16' }}>
+      {/* 무료 체험 남은 시간 배지 */}
+      {leftSec != null && !expired && (
+        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[400] flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold"
+          style={{ background: 'rgba(20,10,10,0.9)', border: '1px solid #f59e0b', color: '#fcd34d' }}>
+          <Clock size={12} /> 무료 체험 {Math.floor(leftSec / 60)}:{String(leftSec % 60).padStart(2, '0')} 남음
+        </div>
+      )}
+      {/* 10분 종료 오버레이 */}
+      {expired && (
+        <div className="fixed inset-0 z-[500] flex flex-col items-center justify-center text-center px-6" style={{ background: 'rgba(5,8,14,0.92)' }}>
+          <div className="w-14 h-14 rounded-2xl bg-[#1f1305] border border-[#f59e0b] flex items-center justify-center mb-4"><Lock size={26} className="text-[#fcd34d]" /></div>
+          <p className="text-[18px] font-extrabold text-[#e2e8f0]">무료 체험 시간이 끝났어요</p>
+          <p className="text-[13px] text-[#94a3b8] mt-2">무료 실행은 10분까지 이용할 수 있어요.<br />오너 · 프리미엄이면 시간 제한 없이 계속 실행됩니다.</p>
+          <button onClick={() => window.close()} className="mt-6 h-11 px-6 rounded-xl font-bold text-[13px] text-white" style={{ background: '#16a34a', border: '1px solid #22c55e' }}>실행 종료</button>
+        </div>
+      )}
       {/* 런타임 헤더 */}
       <header className="flex items-center px-4 h-11 bg-[#0d1117] border-b-2 border-[#16a34a] flex-shrink-0 gap-4"
               style={{ boxShadow: '0 2px 12px #16a34a33' }}>

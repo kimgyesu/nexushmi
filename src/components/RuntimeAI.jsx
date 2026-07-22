@@ -8,6 +8,8 @@ import { ChartCard } from './MiniChart'
 import { buildDemoReport, buildReportFromLogger, reportPrompt } from '../utils/buildReport'
 import { exportStateToExcel } from '../utils/reportExcel'
 import AnalysisDashboard from './AnalysisDashboard'
+import { useAccess } from '../auth/access'
+import { Lock } from 'lucide-react'
 
 // 분석 대시보드 요청 판별
 function isAnalysisQuery(t) {
@@ -202,6 +204,7 @@ function ChatMessage({ msg }) {
 }
 
 export default function RuntimeAI({ tags, onOpenChart, logger, demo }) {
+  const access = useAccess() // 무료 유저는 내부 AI 사용 불가
   const tagsRef = useRef(tags)
   tagsRef.current = tags
 
@@ -612,6 +615,17 @@ ${dataCtx}`
     online: { color: '#22c55e', label: '연결됨' },
     offline: { color: '#ef4444', label: '미연결' },
   }[status]
+
+  if (!access.ai && !access.loading) {
+    return (
+      <aside className="flex flex-col h-full items-center justify-center text-center bg-[#0a1410] border-r border-[#166534] p-6" style={{ width: 320 }}>
+        <div className="w-12 h-12 rounded-xl bg-[#14532d] border border-[#22c55e] flex items-center justify-center mb-3"><Lock size={22} className="text-[#4ade80]" /></div>
+        <p className="text-[13px] font-bold text-[#e2e8f0]">AI 어시스턴트</p>
+        <p className="text-[11px] font-bold text-[#6ee7b7] mt-1">🔒 오너 · 프리미엄 전용</p>
+        <p className="text-[11px] text-[#7c8aa5] mt-3 leading-relaxed">실시간 분석·급변 원인 추적·보고서 등 AI 기능은 오너/프리미엄에서 사용할 수 있어요. 모니터링·시뮬레이션은 자유롭게 이용하세요.</p>
+      </aside>
+    )
+  }
 
   return (
     <aside className="flex flex-col h-full bg-[#0a1410] border-r border-[#166534]" style={{ width: 320 }}>
