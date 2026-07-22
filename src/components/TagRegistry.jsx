@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy, Boxes, FolderOpen, Folder, FolderMinus } from 'lucide-react'
-import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE } from '../data/tags'
+import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress } from '../utils/plcAddress'
 import GroupBuilder from './GroupBuilder'
@@ -51,6 +51,18 @@ function Cell({ tag, col, index, devices, onChange }) {
   }
 
   if (col.key === 'address') {
+    // 가상 태그(또는 NB/ND 주소)는 XGT 변환 없이 그대로 — 자동 부여됨
+    const isNBND = /^N[BD]\d+$/i.test(String(value).trim())
+    if (isVirtualDevice(tag.device) || isNBND) {
+      return (
+        <div>
+          <input type="text" value={value} spellCheck={false} placeholder="비우면 자동 (NB/ND)"
+            onChange={e => onChange(index, { address: e.target.value })}
+            className="w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#1a1530] border border-[#4c1d95] text-[#c4b5fd] focus:outline-none focus:border-[#7c3aed]" />
+          {value && <div className="text-[8px] font-mono mt-0.5" style={{ color: isNBND ? '#a78bfa' : '#eab308' }}>{isNBND ? '🔮 가상' : '가상 주소 아님'}</div>}
+        </div>
+      )
+    }
     const norm = normalizeAddress(value, tag.type)
     const ok = isValidAddress(norm)
     const changed = norm && norm !== String(value).toUpperCase().replace(/\s+/g, '')
@@ -213,7 +225,7 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
       {/* col[4] address */}
       <td className="px-1 py-1" style={{ minWidth: 90 }}>
         <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-          onKeyDown={handleKeyDown} placeholder="D100" className={qCls} />
+          onKeyDown={handleKeyDown} placeholder={isVirtualDevice(form.device) ? '자동 NB/ND' : 'D100'} className={qCls} />
       </td>
       {/* col[5] type */}
       <td className="px-1 py-1" style={{ minWidth: 80 }}>

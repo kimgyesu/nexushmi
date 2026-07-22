@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 // useValueSimulator removed — no auto simulation in editor
 import { CANVAS_ELEMENTS, ELEMENT_TYPE_LABELS, createElement, createSymbolElement } from './data/canvasElements'
-import { DEFAULT_TAGS, makeTag, VIRTUAL_DEVICE } from './data/tags'
+import { DEFAULT_TAGS, makeTag, VIRTUAL_DEVICE, withVirtualAddress, nextVirtualAddress, isVirtualDevice } from './data/tags'
 import { DEFAULT_DEVICES, makeDevice } from './data/devices'
 import { loadGlobalSymbols, saveGlobalSymbols, makeSvgSymbol } from './data/symbols'
 import { STD_SYMBOLS } from './data/stdSymbols'
@@ -947,7 +947,8 @@ export default function App() {
       const ids = new Set(prev.map(t => t.id))
       let unique = id
       while (ids.has(unique)) { unique = `${id}_${n++}` }
-      return [...prev, { ...tag, id: unique }]
+      const withAddr = withVirtualAddress(tag, prev) // 가상 태그면 NB/ND 자동 부여
+      return [...prev, { ...withAddr, id: unique }]
     })
   }, [])
 
@@ -1374,7 +1375,13 @@ export default function App() {
 
     patchActiveScreen(() => ({ elements: els, bindings: binds }))
     setSelectedId(null)
-    if (tagAdds.length) setTags(prev => { const ids = new Set(prev.map(t => t.id)); return [...prev, ...tagAdds.filter(t => !ids.has(t.id))] })
+    if (tagAdds.length) setTags(prev => {
+      const ids = new Set(prev.map(t => t.id))
+      const fresh = tagAdds.filter(t => !ids.has(t.id))
+      const acc = [...prev]
+      const out = fresh.map(t => { const wa = withVirtualAddress(t, acc); acc.push(wa); return wa }) // 가상 태그 NB/ND 순차 부여
+      return [...prev, ...out]
+    })
     if (devAdds.length) setDevices(prev => { const names = new Set(prev.map(d => d.name)); return [...prev, ...devAdds.filter(d => !names.has(d.name))] })
     if (screenAdds.length) {
       setScreens(prev => [...prev, ...screenAdds])

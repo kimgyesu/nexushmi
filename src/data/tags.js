@@ -47,6 +47,34 @@ function toNumber(v, fallback) {
 // 가상 디바이스 상수 — 디바이스 연결 없이 항상 시뮬레이션
 export const VIRTUAL_DEVICE = '__virtual__'
 export const isVirtualTag = t => t?.device === VIRTUAL_DEVICE
+// 실 디바이스가 지정 안 된 태그(빈 값 또는 __virtual__)는 가상으로 취급
+export const isVirtualDevice = d => !d || d === VIRTUAL_DEVICE
+
+// 가상 주소 접두사 — 비트 NB, 워드 ND (자체 생성)
+export const VBIT_PREFIX = 'NB'
+export const VWORD_PREFIX = 'ND'
+const wordSize = type => (type === 'DWORD' || type === 'FLOAT') ? 2 : 1
+
+// 가상 태그의 다음 자유 주소 계산 (BIT→NB, 그 외→ND, DWORD/FLOAT는 2워드 차지)
+export function nextVirtualAddress(tags = [], type = 'WORD') {
+  if (type === 'BIT') {
+    let max = 0
+    for (const t of tags) { const m = /^NB(\d+)$/i.exec(t.address || ''); if (m) max = Math.max(max, +m[1]) }
+    return VBIT_PREFIX + (max + 1)
+  }
+  let maxEnd = 0
+  for (const t of tags) {
+    const m = /^ND(\d+)$/i.exec(t.address || '')
+    if (m) maxEnd = Math.max(maxEnd, +m[1] + wordSize(t.type) - 1)
+  }
+  return VWORD_PREFIX + (maxEnd + 1)
+}
+
+// 가상 태그이고 주소가 비어있으면 NB/ND 자동 부여해서 반환
+export function withVirtualAddress(tag, existingTags = []) {
+  if (!isVirtualDevice(tag.device) || (tag.address && String(tag.address).trim())) return tag
+  return { ...tag, address: nextVirtualAddress(existingTags, tag.type) }
+}
 
 // 부분 데이터 → 정규화된 태그 객체
 export function makeTag(p = {}) {
