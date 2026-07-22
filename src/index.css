@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #1a202c;
+  color: #e2e8f0;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 스크롤바 커스텀 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a202c;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* SCADA 그리드 캔버스 배경 */
+.scada-grid {
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* 깜빡이는 상태 램프 애니메이션 */
+@keyframes blink-green {
+  0%, 100% { box-shadow: 0 0 6px #22c55e, 0 0 12px #22c55e; }
+  50%       { box-shadow: 0 0 2px #22c55e; }
+}
+@keyframes blink-red {
+  0%, 100% { box-shadow: 0 0 6px #ef4444, 0 0 12px #ef4444; }
+  50%       { box-shadow: 0 0 2px #ef4444; }
+}
+.lamp-on  { animation: blink-green 1.2s ease-in-out infinite; }
+.lamp-off { animation: blink-red   1.8s ease-in-out infinite; }
+
+/* 태그 값 변경 하이라이트 */
+@keyframes value-flash {
+  0%   { background-color: rgba(0, 212, 255, 0.25); }
+  100% { background-color: transparent; }
+}
+.value-updated {
+  animation: value-flash 0.6s ease-out forwards;
+}
+
+/* 선/연결선 그리기 모드 — 모든 자식 요소에서도 얇은 십자 커서 유지 */
+svg.drawing-mode,
+svg.drawing-mode * {
+  cursor: crosshair !important;
+}
+
+/* 투명 이미지 미리보기용 체크무늬 배경 */
+.checker-bg {
+  background-color: #0f172a;
+  background-image:
+    linear-gradient(45deg, #334155 25%, transparent 25%),
+    linear-gradient(-45deg, #334155 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #334155 75%),
+    linear-gradient(-45deg, transparent 75%, #334155 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}

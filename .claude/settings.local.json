@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk ls *)",
+      "PowerShell(npm run *)",
+      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c cd /d C:\\\\Users\\\\eldorado\\\\Desktop\\\\NexusHMI && npx vite --port 5173\" -WindowStyle Normal)"
+    ]
+  }
+}

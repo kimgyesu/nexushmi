@@ -1,0 +1,151 @@
+{
+  "project": "SMART GREENHOUSE _ 스마트 온실",
+  "captured": "2026-07-09T08:29:49.694Z",
+  "resolution": "1280x800",
+  "tagCount": 17,
+  "screenCount": 1,
+  "tagPrefix": "TAG_",
+  "utilities": [
+    "존1",
+    "존2",
+    "존3",
+    "존4",
+    "환경",
+    "시계",
+    "설정",
+    "설비"
+  ],
+  "tagSamples": [
+    "TAG_Z1_T",
+    "TAG_Z1_H",
+    "TAG_Z2_T",
+    "TAG_Z2_H",
+    "TAG_Z3_T",
+    "TAG_Z3_H",
+    "TAG_Z4_T",
+    "TAG_Z4_H"
+  ],
+  "style": {
+    "gboxW": 210,
+    "gboxH": 130,
+    "border": "#22d3ee",
+    "bg": "rgba(2,10,14,0.86)",
+    "valueFont": 26
+  },
+  "panelRecipes": [
+    {
+      "title": "패널",
+      "rows": [
+        {
+          "label": ":",
+          "type": "numeric"
+        },
+        {
+          "label": ":",
+          "type": "numeric"
+        },
+        {
+          "label": "일광량",
+          "type": "numeric"
+        }
+      ]
+    },
+    {
+      "title": "존1 · 토마토 A",
+      "rows": [
+        {
+          "label": "온도",
+          "type": "numeric"
+        },
+        {
+          "label": "습도",
+          "type": "numeric"
+        }
+      ]
+    },
+    {
+      "title": "존2 · 토마토 B",
+      "rows": [
+        {
+          "label": "온도",
+          "type": "numeric"
+        },
+        {
+          "label": "습도",
+          "type": "numeric"
+        }
+      ]
+    },
+    {
+      "title": "존4 · 파프리카 B",
+      "rows": [
+        {
+          "label": "온도",
+          "type": "numeric"
+        },
+        {
+          "label": "습도",
+          "type": "numeric"
+        }
+      ]
+    },
+    {
+      "title": "존3 · 파프리카 A",
+      "rows": [
+        {
+          "label": "온도",
+          "type": "numeric"
+        },
+        {
+          "label": "습도",
+          "type": "numeric"
+        }
+      ]
+    },
+    {
+      "title": "환경 제어  ·  목표값 클릭 입력 → 자동 제어",
+      "rows": [
+        {
+          "label": "°C",
+          "type": "numeric"
+        },
+        {
+          "label": "%",
+          "type": "numeric"
+        },
+        {
+          "label": "냉각휀",
+          "type": "switch"
+        },
+        {
+          "label": "냉각휀",
+          "type": "lamp"
+        },
+        {
+          "label": "냉동기",
+          "type": "switch"
+        },
+        {
+          "label": "냉동기",
+          "type": "lamp"
+        },
+        {
+          "label": "히터",
+          "type": "switch"
+        },
+        {
+          "label": "히터",
+          "type": "lamp"
+        },
+        {
+          "label": "물 분사",
+          "type": "switch"
+        },
+        {
+          "label": "물 분사",
+          "type": "lamp"
+        }
+      ]
+    }
+  ]
+}

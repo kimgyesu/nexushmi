@@ -1,0 +1,61 @@
+{
+  "project": "SMART FACTORY _ LINE 1",
+  "captured": "2026-07-06T11:17:22.484Z",
+  "resolution": "1280x800",
+  "tagCount": 15,
+  "screenCount": 1,
+  "tagPrefix": "TAG_",
+  "utilities": [
+    "라인",
+    "유틸",
+    "모터",
+    "컨베이어",
+    "탱크",
+    "알람"
+  ],
+  "tagSamples": [
+    "TAG_PROD",
+    "TAG_PRESS",
+    "TAG_TEMP",
+    "TAG_POWER",
+    "TAG_M1_ST",
+    "TAG_M2_ST",
+    "TAG_M3_ST",
+    "TAG_M1_CUR"
+  ],
+  "style": {
+    "gboxW": 590,
+    "gboxH": 170,
+    "border": "#00e5ff",
+    "bg": "rgba(0,229,255,0.03)",
+    "valueFont": 16
+  },
+  "panelRecipes": [
+    {
+      "title": "MOTORS",
+      "rows": [
+        {
+          "label": "",
+          "type": "numeric"
+        },
+        {
+          "label": "",
+          "type": "numeric"
+        },
+        {
+          "label": "",
+          "type": "numeric"
+        }
+      ]
+    },
+    {
+      "title": "CONVEYOR",
+      "rows": [
+        {
+          "label": "",
+          "type": "numeric"
+        }
+      ]
+    }
+  ]
+}

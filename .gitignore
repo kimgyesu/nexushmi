@@ -1,0 +1,33 @@
+# 의존성
+node_modules/
+
+# 빌드 산출물
+dist/
+dist-ssr/
+
+# 로그
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 환경변수/비밀 (혹시 나중에 추가되면 제외)
+.env
+.env.*
+*.serviceaccount.json
+serviceAccountKey.json
+
+# 로컬 DB (서버 이력)
+*.sqlite
+*.sqlite3
+*.db
+server/*.db
+
+# Firebase 캐시
+.firebase/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
