@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy, Boxes, FolderOpen, Folder, FolderMinus } from 'lucide-react'
 import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
@@ -267,6 +267,20 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 export default function TagRegistry({ open, tags, devices = [], projectName, onClose, onOpenDevices, onUpdateTag, onAddTag, onDeleteTag, onReplaceTags, onDuplicateGroup, onCreateGroup }) {
   const fileRef = useRef(null)
+  // 컬럼 너비(드래그로 조절) — localStorage에 저장
+  const [colW, setColW] = useState(() => {
+    const base = Object.fromEntries(TAG_COLUMNS.map(c => [c.key, c.width]))
+    try { const s = localStorage.getItem('nexushmi.tagcolw'); if (s) return { ...base, ...JSON.parse(s) } } catch { /* noop */ }
+    return base
+  })
+  useEffect(() => { try { localStorage.setItem('nexushmi.tagcolw', JSON.stringify(colW)) } catch { /* noop */ } }, [colW])
+  function startColResize(e, key) {
+    e.preventDefault(); e.stopPropagation()
+    const startX = e.clientX, startW = colW[key] || 100
+    const onMove = ev => setColW(w => ({ ...w, [key]: Math.max(44, startW + (ev.clientX - startX)) }))
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); document.body.style.cursor = '' }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); document.body.style.cursor = 'col-resize'
+  }
   const [gbOpen, setGbOpen] = useState(false)
   const [dupOpen, setDupOpen] = useState(false)
   const [dupSource, setDupSource] = useState('')
@@ -495,7 +509,7 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
           {/* 오른쪽 태그 테이블 */}
           <div className="flex-1 overflow-auto">
             {true ? (
-              <table className="text-[11px]" style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
+              <table className="text-[11px]" style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: 104 + TAG_COLUMNS.reduce((s, c) => s + (colW[c.key] || c.width), 0) }}>
                 <thead>
                   <tr className="bg-[#1a202c] sticky top-0 z-10">
                     {/* 전체 선택 체크박스 */}
@@ -509,9 +523,14 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
                       style={{ borderBottom: '1px solid #2d3748', width: 32 }}>#</th>
                     {TAG_COLUMNS.map(col => (
                       <th key={col.key}
-                        className="px-2 py-1.5 text-left text-[9px] font-bold text-[#4a5568] uppercase whitespace-nowrap"
-                        style={{ borderBottom: '1px solid #2d3748', minWidth: col.width }}>
+                        className="px-2 py-1.5 text-left text-[9px] font-bold text-[#4a5568] uppercase whitespace-nowrap relative select-none"
+                        style={{ borderBottom: '1px solid #2d3748', width: colW[col.key], minWidth: colW[col.key], maxWidth: colW[col.key] }}>
                         {col.header}
+                        <span onMouseDown={e => startColResize(e, col.key)} title="드래그해서 너비 조절"
+                          className="absolute top-0 right-0 h-full"
+                          style={{ width: 6, cursor: 'col-resize', borderRight: '2px solid transparent' }}
+                          onMouseEnter={e => (e.currentTarget.style.borderRight = '2px solid #3b82f6')}
+                          onMouseLeave={e => (e.currentTarget.style.borderRight = '2px solid transparent')} />
                       </th>
                     ))}
                     <th style={{ borderBottom: '1px solid #2d3748', width: 40 }} />
@@ -535,7 +554,7 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
                         </td>
                         <td className="px-2 py-1 text-[9px] text-[#4a5568] font-mono text-center">{idx + 1}</td>
                         {TAG_COLUMNS.map(col => (
-                          <td key={col.key} className="px-1 py-1" style={{ minWidth: col.width }}>
+                          <td key={col.key} className="px-1 py-1" style={{ width: colW[col.key], minWidth: colW[col.key], maxWidth: colW[col.key] }}>
                             <Cell tag={tag} col={col} index={idx} devices={devices} onChange={onUpdateTag} />
                           </td>
                         ))}
