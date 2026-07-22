@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Cpu, Plus, Trash2, X, Plug, Loader2 } from 'lucide-react'
+import { Cpu, Plus, Trash2, X, Plug, Loader2, FileText } from 'lucide-react'
 import { DEVICE_COLUMNS, DEVICE_PROTOCOLS, BAUD_RATES, PARITIES, isSerial, makeDevice } from '../data/devices'
-import { VENDORS, driversByVendor, getDriver, driverForDevice } from '../data/drivers'
+import { vendorsList, driversByVendor, getDriver, driverForDevice, isCustomDriver } from '../data/drivers'
 import { plcConnect } from '../utils/api'
+import DriverEditor from './DriverEditor'
 
 function Cell({ device, col, index, onChange }) {
   const value = device[col.key] ?? ''
@@ -19,7 +20,7 @@ function Cell({ device, col, index, onChange }) {
     return (
       <select value={device.driverId || ''} onChange={e => selectDriver(e.target.value)} className={cls} style={{ color: '#a78bfa' }}>
         <option value="" style={{ background: '#0f172a', color: '#64748b' }}>— 드라이버 선택 —</option>
-        {VENDORS.map(v => (
+        {vendorsList().map(v => (
           <optgroup key={v} label={v} style={{ background: '#0f172a', color: '#7dd3fc' }}>
             {driversByVendor(v).map(d => <option key={d.id} value={d.id} style={{ background: '#0f172a', color: '#e2e8f0' }}>{d.name}</option>)}
           </optgroup>
@@ -98,7 +99,8 @@ function ConnectBtn({ device }) {
   )
 }
 
-export default function DeviceRegistry({ open, devices, onClose, onUpdateDevice, onAddDevice, onDeleteDevice }) {
+export default function DeviceRegistry({ open, devices, drivers = [], onClose, onUpdateDevice, onAddDevice, onDeleteDevice, onSaveDriver, onDeleteDriver }) {
+  const [editorDriver, setEditorDriver] = useState(undefined) // undefined=닫힘, null=새로, obj=편집
   if (!open) return null
 
   return (
@@ -110,8 +112,13 @@ export default function DeviceRegistry({ open, devices, onClose, onUpdateDevice,
           <Cpu size={16} className="text-[#60a5fa]" />
           <span className="text-[13px] font-bold text-[#e2e8f0]">디바이스 등록</span>
           <span className="text-[10px] text-[#4a5568] ml-1">{devices.length}대 · 통신 설정 포함</span>
+          <button onClick={() => setEditorDriver(null)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#a78bfa] hover:bg-[#2d1b4e] transition-colors"
+            style={{ border: '1px solid #7c3aed' }}>
+            <Plus size={13} /> 커스텀 드라이버
+          </button>
           <button onClick={() => onAddDevice(makeDevice({ name: '' }))}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#00d4ff] hover:bg-[#0f2444] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#00d4ff] hover:bg-[#0f2444] transition-colors"
             style={{ border: '1px solid #1e40af' }}>
             <Plus size={13} /> 디바이스 추가
           </button>
@@ -119,6 +126,20 @@ export default function DeviceRegistry({ open, devices, onClose, onUpdateDevice,
             <X size={16} />
           </button>
         </div>
+
+        {/* 커스텀 드라이버 칩 */}
+        {drivers.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 flex-wrap flex-shrink-0" style={{ background: '#0b0f18', borderBottom: '1px solid #1e2a4a' }}>
+            <span className="text-[9px] text-[#7c8aa5] font-bold">내 드라이버:</span>
+            {drivers.map(d => (
+              <span key={d.id} className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px]" style={{ background: '#1a1530', border: '1px solid #4c1d95', color: '#c4b5fd' }}>
+                <button onClick={() => setEditorDriver(d)} title="편집" className="font-bold hover:text-[#ddd6fe]">{d.vendor} · {d.name}</button>
+                {d.manual && <FileText size={9} className="text-[#60a5fa]" title="매뉴얼 첨부됨" />}
+                <button onClick={() => { if (confirm(`드라이버 "${d.name}" 삭제?`)) onDeleteDriver?.(d.id) }} className="text-[#f87171] hover:text-[#fca5a5]"><X size={10} /></button>
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* 테이블 */}
         <div className="flex-1 overflow-auto">
@@ -179,6 +200,12 @@ export default function DeviceRegistry({ open, devices, onClose, onUpdateDevice,
           </button>
         </div>
       </div>
+
+      {editorDriver !== undefined && (
+        <DriverEditor driver={editorDriver}
+          onSave={d => { onSaveDriver?.(d); setEditorDriver(undefined) }}
+          onClose={() => setEditorDriver(undefined)} />
+      )}
     </div>
   )
 }

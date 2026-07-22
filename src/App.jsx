@@ -13,6 +13,7 @@ import ElementPropertyModal from './components/ElementPropertyModal'
 import EditorAI from './components/EditorAI'
 import TagRegistry from './components/TagRegistry'
 import DeviceRegistry from './components/DeviceRegistry'
+import { setCustomDrivers as registerCustomDrivers } from './data/drivers'
 import SymbolLibrary from './components/SymbolLibrary'
 import SaveProjectDialog from './components/SaveProjectDialog'
 import PanelStyleGallery from './components/PanelStyleGallery'
@@ -414,6 +415,14 @@ export default function App() {
   const [projectName, setProjectName] = useState(initial.name)
   const [resolution, setResolution] = useState(initial.resolution ?? DEFAULT_RESOLUTION)
   const [devices, setDevices] = useState(initial.devices)
+  const [customDrivers, setCustomDriversState] = useState(initial.drivers || [])
+  registerCustomDrivers(customDrivers) // 드라이버 레지스트리에 주입(내장+커스텀 병합)
+  const saveDriver = useCallback((driver) => setCustomDriversState(prev => {
+    const i = prev.findIndex(d => d.id === driver.id)
+    if (i >= 0) { const n = prev.slice(); n[i] = driver; return n }
+    return [...prev, driver]
+  }), [])
+  const deleteDriver = useCallback((id) => setCustomDriversState(prev => prev.filter(d => d.id !== id)), [])
   const [tags, setTags] = useState(initial.tags)
   const [symbols, setSymbols] = useState(() => {
     // 내장 표준 부품(std_)을 항상 앞에 + 사용자 심볼 (중복 std_ 제거)
@@ -515,10 +524,10 @@ export default function App() {
 
   // 자동 저장
   useEffect(() => {
-    saveProject({ name: projectName, resolution, devices, tags, screens, activeScreenId, symbols, recipeSets,
+    saveProject({ name: projectName, resolution, devices, tags, screens, activeScreenId, symbols, recipeSets, drivers: customDrivers,
       elements: activeScreen?.elements ?? [], bindings: activeScreen?.bindings ?? {}, svgBindings: activeScreen?.svgBindings ?? {},
       bgImage: activeScreen?.bgImage ?? '', bgFit: activeScreen?.bgFit ?? 'slice', bgDim: activeScreen?.bgDim ?? 0, sim: activeScreen?.sim ?? null })
-  }, [projectName, resolution, devices, tags, screens, activeScreenId, symbols, recipeSets])
+  }, [projectName, resolution, devices, tags, screens, activeScreenId, symbols, recipeSets, customDrivers])
 
   // ── 화면 CRUD ──
   const selectScreen = useCallback((id) => {
@@ -1704,10 +1713,13 @@ export default function App() {
       <DeviceRegistry
         open={deviceRegistryOpen}
         devices={devices}
+        drivers={customDrivers}
         onClose={() => setDeviceRegistryOpen(false)}
         onUpdateDevice={updateDevice}
         onAddDevice={addDevice}
         onDeleteDevice={deleteDevice}
+        onSaveDriver={saveDriver}
+        onDeleteDriver={deleteDriver}
       />
 
       <SymbolLibrary

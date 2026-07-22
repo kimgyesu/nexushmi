@@ -61,16 +61,28 @@ export const DRIVERS = [
     defaults: { baud: 9600, parity: 'none', station: 1 } },
 ]
 
-export const DRIVERS_BY_ID = Object.fromEntries(DRIVERS.map(d => [d.id, d]))
-export const getDriver = id => DRIVERS_BY_ID[id] || null
-export const VENDORS = [...new Set(DRIVERS.map(d => d.vendor))]
-export const driversByVendor = vendor => DRIVERS.filter(d => d.vendor === vendor)
+// 커스텀 드라이버(사용자/AI 생성) — 프로젝트에 저장되고 App이 setCustomDrivers로 주입
+let _custom = []
+export function setCustomDrivers(list) { _custom = Array.isArray(list) ? list : [] }
+export function getCustomDrivers() { return _custom }
+export function isCustomDriver(id) { return _custom.some(d => d.id === id) }
+
+// 내장 + 커스텀 (같은 id면 커스텀 우선)
+export function allDrivers() {
+  const seen = new Set(), out = []
+  for (const d of [..._custom, ...DRIVERS]) if (d && d.id && !seen.has(d.id)) { seen.add(d.id); out.push(d) }
+  return out
+}
+export const getDriver = id => allDrivers().find(d => d.id === id) || null
+export const VENDORS = [...new Set(DRIVERS.map(d => d.vendor))]        // 내장 제조사(하위호환)
+export const vendorsList = () => [...new Set(allDrivers().map(d => d.vendor))] // 전체(커스텀 포함)
+export const driversByVendor = vendor => allDrivers().filter(d => d.vendor === vendor)
 
 // 디바이스 → 드라이버 (driverId 우선, 없으면 protocol로 추정, 최후 LS)
 export function driverForDevice(device) {
   if (!device) return getDriver('virtual')
-  if (device.driverId && DRIVERS_BY_ID[device.driverId]) return DRIVERS_BY_ID[device.driverId]
-  const byProto = DRIVERS.find(d => d.protocol === device.protocol)
+  if (device.driverId) { const d = getDriver(device.driverId); if (d) return d }
+  const byProto = allDrivers().find(d => d.protocol === device.protocol)
   return byProto || getDriver('ls-xgt')
 }
 

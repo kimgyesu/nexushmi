@@ -102,6 +102,7 @@ export function loadProject() {
         screens:        d.screens,
         activeScreenId: d.activeScreenId ?? d.screens[0].id,
         symbols:        Array.isArray(d.symbols) ? d.symbols : [],
+        drivers:        Array.isArray(d.drivers) ? d.drivers : [],
         elements:       d.elements ?? [],
         bindings:       d.bindings ?? {},
         svgBindings:    d.svgBindings ?? {},
