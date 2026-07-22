@@ -11,17 +11,17 @@ function Cell({ device, col, index, onChange }) {
   const cls = 'w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]'
   const serial = driverForDevice(device).conn === 'serial'
 
-  // 종류/모델 = 드라이버 선택 (제조사별 그룹). 선택 시 프로토콜·통신방식·기본값 자동
-  if (col.key === 'kind') {
+  // 디바이스명 = 드라이버 선택 (드라이버명·설정이 그대로 반영). 별도 드라이버 칸 없음
+  if (col.key === 'name') {
     const selectDriver = id => {
       const d = getDriver(id)
-      onChange(index, d ? { driverId: id, kind: d.name, protocol: d.protocol, ...d.defaults } : { driverId: '', kind: '' })
+      onChange(index, d ? { driverId: id, name: d.name, kind: d.name, protocol: d.protocol, ...d.defaults } : { driverId: '', name: '' })
     }
     return (
-      <select value={device.driverId || ''} onChange={e => selectDriver(e.target.value)} className={cls} style={{ color: '#a78bfa' }}>
+      <select value={device.driverId || ''} onChange={e => selectDriver(e.target.value)} className={cls} style={{ color: '#7dd3fc', fontWeight: 700 }}>
         <option value="" style={{ background: '#0f172a', color: '#64748b' }}>— 드라이버 선택 —</option>
         {vendorsList().map(v => (
-          <optgroup key={v} label={v} style={{ background: '#0f172a', color: '#7dd3fc' }}>
+          <optgroup key={v} label={v} style={{ background: '#0f172a', color: '#a78bfa' }}>
             {driversByVendor(v).map(d => <option key={d.id} value={d.id} style={{ background: '#0f172a', color: '#e2e8f0' }}>{d.name}</option>)}
           </optgroup>
         ))}
@@ -133,9 +133,10 @@ export default function DeviceRegistry({ open, devices, drivers = [], onClose, o
             <span className="text-[9px] text-[#7c8aa5] font-bold">내 드라이버:</span>
             {drivers.map(d => (
               <span key={d.id} className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px]" style={{ background: '#1a1530', border: '1px solid #4c1d95', color: '#c4b5fd' }}>
-                <button onClick={() => setEditorDriver(d)} title="편집" className="font-bold hover:text-[#ddd6fe]">{d.vendor} · {d.name}</button>
+                <button onClick={() => setEditorDriver(d)} title="클릭 → 드라이버 수정 (명칭·설정 변경)" className="font-bold hover:text-[#ddd6fe] hover:underline">{d.vendor} · {d.name}</button>
                 {d.manual && <FileText size={9} className="text-[#60a5fa]" title="매뉴얼 첨부됨" />}
-                <button onClick={() => { if (confirm(`드라이버 "${d.name}" 삭제?`)) onDeleteDriver?.(d.id) }} className="text-[#f87171] hover:text-[#fca5a5]"><X size={10} /></button>
+                <button onClick={() => setEditorDriver(d)} title="수정" className="text-[#a78bfa] hover:text-[#ddd6fe]"><Cpu size={9} /></button>
+                <button onClick={() => { if (confirm(`드라이버 "${d.name}" 삭제?`)) onDeleteDriver?.(d.id) }} title="삭제" className="text-[#f87171] hover:text-[#fca5a5]"><X size={10} /></button>
               </span>
             ))}
           </div>

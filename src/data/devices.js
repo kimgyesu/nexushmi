@@ -8,8 +8,7 @@ export const SERIAL_PROTOCOLS = ['XGT Cnet (LS)', 'Modbus RTU']
 export const isSerial = p => SERIAL_PROTOCOLS.includes(p)
 
 export const DEVICE_COLUMNS = [
-  { key: 'name',     header: '디바이스명', width: 120, type: 'text' },
-  { key: 'kind',     header: '드라이버',    width: 160, type: 'text' },
+  { key: 'name',     header: '디바이스명 (드라이버)', width: 200, type: 'text' },
   { key: 'protocol', header: '프로토콜',   width: 130, type: 'protocol' },
   { key: 'port',     header: '포트',       width: 80,  type: 'text' },   // COM3 또는 IP
   { key: 'station',  header: '국번',       width: 55,  type: 'number' },
