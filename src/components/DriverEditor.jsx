@@ -64,7 +64,8 @@ export default function DriverEditor({ driver, onSave, onClose }) {
   const lbl = 'text-[10px] font-bold text-[#7c8aa5] mb-1 block'
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
       <div className="w-[560px] max-h-[88vh] overflow-y-auto rounded-xl" style={{ background: '#0d1420', border: '1px solid #1e2a4a' }}>
         <div className="flex items-center gap-2 px-4 py-3 sticky top-0" style={{ background: '#0d1420', borderBottom: '1px solid #1e2a4a' }}>
           <Cpu size={16} className="text-[#a78bfa]" />
