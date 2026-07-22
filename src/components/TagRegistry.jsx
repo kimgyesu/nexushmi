@@ -3,6 +3,7 @@ import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy
 import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice, assignVirtualAddresses } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress, applyType } from '../utils/plcAddress'
+import { driverForDevice, normalizeForDriver, validateForDriver } from '../data/drivers'
 import GroupBuilder from './GroupBuilder'
 
 const TYPE_COLORS = { BIT: '#a78bfa', WORD: '#f59e0b', FLOAT: '#00d4ff' }
@@ -47,8 +48,11 @@ function Cell({ tag, col, index, devices, onChange }) {
           const type = e.target.value
           const patch = { type }
           const a = tag.address
-          // 실 디바이스 % 주소면 비트/워드에 맞춰 크기문자 재적용
-          if (a && !isVirtualDevice(tag.device) && !/^N[BD]\d+$/i.test(String(a))) patch.address = applyType(a, type)
+          // 실 디바이스면 그 디바이스 드라이버 형식으로 주소 재적용 (비트/워드 반영)
+          if (a && !isVirtualDevice(tag.device) && !/^N[BD]\d+$/i.test(String(a))) {
+            const dev = devices.find(d => d.name === tag.device)
+            patch.address = normalizeForDriver(driverForDevice(dev), a, type)
+          }
           onChange(index, patch)
         }}
         className="w-full text-[10px] font-mono rounded px-1 py-1 bg-[#0f172a] border border-[#1e2a4a] focus:outline-none"
@@ -71,18 +75,20 @@ function Cell({ tag, col, index, devices, onChange }) {
         </div>
       )
     }
-    // 실 디바이스: 입력 후(blur) %형식으로 자동 변환·저장 (비트/워드 크기문자 자동)
-    const ok = isValidAddress(value)
-    const preview = applyType(value, tag.type)
+    // 실 디바이스: 그 디바이스의 드라이버 형식으로 정규화·검증 (제조사별)
+    const dev = devices.find(d => d.name === tag.device)
+    const driver = driverForDevice(dev)
+    const ok = validateForDriver(driver, value)
+    const preview = normalizeForDriver(driver, value, tag.type)
     return (
       <div>
-        <input type="text" value={value} spellCheck={false} placeholder="예: M0, D100 → 자동 %"
+        <input type="text" value={value} spellCheck={false} placeholder={driver.addr.hint}
           onChange={e => onChange(index, { address: e.target.value })}
-          onBlur={e => { const a = applyType(e.target.value, tag.type); if (a !== value) onChange(index, { address: a }) }}
+          onBlur={e => { const a = normalizeForDriver(driver, e.target.value, tag.type); if (a !== value) onChange(index, { address: a }) }}
           className="w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]" />
         {value && (
           <div className="text-[8px] font-mono mt-0.5" style={{ color: ok ? '#22c55e' : '#60a5fa' }}>
-            {ok ? '✓' : `→ ${preview}`}
+            {ok ? `✓ ${driver.vendor}` : `→ ${preview}`}
           </div>
         )}
       </div>
@@ -194,8 +200,9 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
     if (!form.desc.trim()) return
     const grp = (selectedGroup === '__all__' || selectedGroup === NONE_GROUP) ? '' : selectedGroup
     const idBase = `TAG_${grp ? grp + '_' : ''}${form.desc}`.toUpperCase().replace(/[^A-Z0-9_가-힣]/g, '_')
-    // 실 디바이스 주소는 %형식으로 자동 변환 (가상은 비워두면 addTag가 NB/ND 부여)
-    const address = isVirtualDevice(form.device) ? form.address : applyType(form.address, form.type)
+    // 실 디바이스 주소는 그 드라이버 형식으로 정규화 (가상은 비워두면 addTag가 NB/ND 부여)
+    const dev = devices.find(d => d.name === form.device)
+    const address = isVirtualDevice(form.device) ? form.address : normalizeForDriver(driverForDevice(dev), form.address, form.type)
     onAdd(makeTag({ ...form, address, id: idBase, utility: grp }))
     setForm({ desc: '', type: 'WORD', device: '', address: '', unit: '', min: 0, max: 100, decimals: 0 })
   }

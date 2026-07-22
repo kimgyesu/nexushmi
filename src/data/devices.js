@@ -22,6 +22,7 @@ export function makeDevice(p = {}) {
   return {
     name: String(p.name ?? '').trim() || ('DEV_' + Math.random().toString(36).slice(2, 6).toUpperCase()),
     kind: String(p.kind ?? ''),
+    driverId: String(p.driverId ?? ''),   // 드라이버 카탈로그 id (제조사/모델 선택 시 지정)
     protocol: DEVICE_PROTOCOLS.includes(p.protocol) ? p.protocol : '시뮬레이션',
     port: String(p.port ?? ''),        // 시리얼: COM3 / TCP: IP
     station: Number.isFinite(+p.station) ? +p.station : 1,
