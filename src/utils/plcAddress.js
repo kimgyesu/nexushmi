@@ -32,3 +32,15 @@ export function normalizeAddress(raw, tagType) {
 export function isValidAddress(addr) {
   return /^%[A-Z]+[XBWDL][0-9.]+$/.test(String(addr ?? '').toUpperCase())
 }
+
+// 주소(% 또는 현장표기)에 태그 타입 기준 크기문자를 재적용 → 항상 %[영역][크기][번호]
+//   BIT→X, WORD→W, DWORD/FLOAT→D  (비트/워드에 따라 자동 구분)
+export function applyType(addr, tagType) {
+  const s = String(addr ?? '').trim().toUpperCase().replace(/\s+/g, '')
+  if (!s) return ''
+  let m = /^%([A-Z]+?)[XBWDL]?([0-9.]+)$/.exec(s)  // 이미 % 형식 → 크기문자 교체 (영역은 비탐욕)
+  if (m) return `%${m[1]}${sizeFor(tagType)}${m[2]}`
+  m = /^([A-Z]+)([0-9.]+)$/.exec(s)                 // 현장표기(M0, D100) → % 부여
+  if (m) return `%${m[1]}${sizeFor(tagType)}${m[2]}`
+  return s
+}

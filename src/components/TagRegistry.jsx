@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import { Database, Upload, Download, FileSpreadsheet, Plus, Trash2, X, Cpu, Copy, Boxes, FolderOpen, Folder, FolderMinus } from 'lucide-react'
 import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtualDevice, assignVirtualAddresses } from '../data/tags'
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
-import { normalizeAddress, isValidAddress } from '../utils/plcAddress'
+import { normalizeAddress, isValidAddress, applyType } from '../utils/plcAddress'
 import GroupBuilder from './GroupBuilder'
 
 const TYPE_COLORS = { BIT: '#a78bfa', WORD: '#f59e0b', FLOAT: '#00d4ff' }
@@ -42,7 +42,15 @@ function Cell({ tag, col, index, devices, onChange }) {
 
   if (col.key === 'type') {
     return (
-      <select value={value} onChange={e => onChange(index, { type: e.target.value })}
+      <select value={value}
+        onChange={e => {
+          const type = e.target.value
+          const patch = { type }
+          const a = tag.address
+          // 실 디바이스 % 주소면 비트/워드에 맞춰 크기문자 재적용
+          if (a && !isVirtualDevice(tag.device) && !/^N[BD]\d+$/i.test(String(a))) patch.address = applyType(a, type)
+          onChange(index, patch)
+        }}
         className="w-full text-[10px] font-mono rounded px-1 py-1 bg-[#0f172a] border border-[#1e2a4a] focus:outline-none"
         style={{ color: TYPE_COLORS[value] ?? '#e2e8f0' }}>
         {TAG_TYPES.map(t => <option key={t} value={t} style={{ background: '#0f172a', color: '#e2e8f0' }}>{t}</option>)}
@@ -63,17 +71,18 @@ function Cell({ tag, col, index, devices, onChange }) {
         </div>
       )
     }
-    const norm = normalizeAddress(value, tag.type)
-    const ok = isValidAddress(norm)
-    const changed = norm && norm !== String(value).toUpperCase().replace(/\s+/g, '')
+    // 실 디바이스: 입력 후(blur) %형식으로 자동 변환·저장 (비트/워드 크기문자 자동)
+    const ok = isValidAddress(value)
+    const preview = applyType(value, tag.type)
     return (
       <div>
-        <input type="text" value={value} spellCheck={false} placeholder="예: D100, M1"
+        <input type="text" value={value} spellCheck={false} placeholder="예: M0, D100 → 자동 %"
           onChange={e => onChange(index, { address: e.target.value })}
+          onBlur={e => { const a = applyType(e.target.value, tag.type); if (a !== value) onChange(index, { address: a }) }}
           className="w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]" />
         {value && (
-          <div className="text-[8px] font-mono mt-0.5" style={{ color: ok ? '#22c55e' : '#ef4444' }}>
-            {ok ? (changed ? `→ ${norm}` : '✓') : '형식 확인'}
+          <div className="text-[8px] font-mono mt-0.5" style={{ color: ok ? '#22c55e' : '#60a5fa' }}>
+            {ok ? '✓' : `→ ${preview}`}
           </div>
         )}
       </div>
@@ -185,7 +194,9 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
     if (!form.desc.trim()) return
     const grp = (selectedGroup === '__all__' || selectedGroup === NONE_GROUP) ? '' : selectedGroup
     const idBase = `TAG_${grp ? grp + '_' : ''}${form.desc}`.toUpperCase().replace(/[^A-Z0-9_가-힣]/g, '_')
-    onAdd(makeTag({ ...form, id: idBase, utility: grp }))
+    // 실 디바이스 주소는 %형식으로 자동 변환 (가상은 비워두면 addTag가 NB/ND 부여)
+    const address = isVirtualDevice(form.device) ? form.address : applyType(form.address, form.type)
+    onAdd(makeTag({ ...form, address, id: idBase, utility: grp }))
     setForm({ desc: '', type: 'WORD', device: '', address: '', unit: '', min: 0, max: 100, decimals: 0 })
   }
 
