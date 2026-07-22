@@ -38,7 +38,7 @@ export const DRIVERS = [
 
   { id: 'siemens-s7', vendor: 'Siemens', name: 'Siemens S7 (S7-1200/1500/200 Smart)', protocol: 'S7comm', conn: 'ethernet',
     addr: { transform: 'upper', example: 'M0.0 · MW10 · DB1.DBW0', hint: '지멘스 (M0.0, MW10, DBx.DBWy)', validate: '^(%?[IQM]\\d+(\\.\\d+)?|%?[IQM][BWD]\\d+|DB\\d+\\.DB[XBWD]\\d+(\\.\\d+)?)$' },
-    defaults: { port: '', station: 0 } },
+    defaults: { station: 0 } },
 
   { id: 'omron-fins', vendor: 'Omron', name: 'Omron FINS (CJ/CP/NX)', protocol: 'FINS', conn: 'ethernet',
     addr: { transform: 'upper', example: 'CIO0.00 · D100 · W0.00', hint: '옴론 (CIO, D, W)', validate: '^(CIO|D|W|H|A|E)\\d+(\\.\\d+)?$' },
@@ -50,7 +50,7 @@ export const DRIVERS = [
 
   { id: 'modbus-tcp', vendor: 'Modbus', name: 'Modbus TCP (범용)', protocol: 'Modbus TCP', conn: 'ethernet',
     addr: { transform: 'raw', example: '40001(홀딩) · 00001(코일)', hint: 'Modbus 레지스터 번호', validate: '^[0-4]?[0-9]{1,5}$' },
-    defaults: { port: '502', station: 1 } },
+    defaults: { station: 1 } },
 
   { id: 'modbus-rtu', vendor: 'Modbus', name: 'Modbus RTU (범용)', protocol: 'Modbus RTU', conn: 'serial',
     addr: { transform: 'raw', example: '40001 · 00001', hint: 'Modbus 레지스터 번호', validate: '^[0-4]?[0-9]{1,5}$' },

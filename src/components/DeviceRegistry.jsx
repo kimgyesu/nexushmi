@@ -1,15 +1,36 @@
 import { useState } from 'react'
 import { Cpu, Plus, Trash2, X, Plug, Loader2 } from 'lucide-react'
 import { DEVICE_COLUMNS, DEVICE_PROTOCOLS, BAUD_RATES, PARITIES, isSerial, makeDevice } from '../data/devices'
+import { VENDORS, driversByVendor, getDriver, driverForDevice } from '../data/drivers'
 import { plcConnect } from '../utils/api'
 
 function Cell({ device, col, index, onChange }) {
   const value = device[col.key] ?? ''
   const set = v => onChange(index, { [col.key]: v })
   const cls = 'w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]'
-  const serial = isSerial(device.protocol)
+  const serial = driverForDevice(device).conn === 'serial'
+
+  // 종류/모델 = 드라이버 선택 (제조사별 그룹). 선택 시 프로토콜·통신방식·기본값 자동
+  if (col.key === 'kind') {
+    const selectDriver = id => {
+      const d = getDriver(id)
+      onChange(index, d ? { driverId: id, kind: d.name, protocol: d.protocol, ...d.defaults } : { driverId: '', kind: '' })
+    }
+    return (
+      <select value={device.driverId || ''} onChange={e => selectDriver(e.target.value)} className={cls} style={{ color: '#a78bfa' }}>
+        <option value="" style={{ background: '#0f172a', color: '#64748b' }}>— 드라이버 선택 —</option>
+        {VENDORS.map(v => (
+          <optgroup key={v} label={v} style={{ background: '#0f172a', color: '#7dd3fc' }}>
+            {driversByVendor(v).map(d => <option key={d.id} value={d.id} style={{ background: '#0f172a', color: '#e2e8f0' }}>{d.name}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    )
+  }
 
   if (col.type === 'protocol') {
+    // 드라이버 지정 시 프로토콜은 자동(읽기전용), 없으면 수동 선택(하위호환)
+    if (device.driverId) return <span className="text-[10px] font-mono" style={{ color: '#22c55e' }}>{getDriver(device.driverId)?.protocol || value}</span>
     return (
       <select value={value} onChange={e => set(e.target.value)} className={cls} style={{ color: '#22c55e' }}>
         {DEVICE_PROTOCOLS.map(p => <option key={p} value={p} style={{ background: '#0f172a', color: '#e2e8f0' }}>{p}</option>)}
@@ -35,12 +56,13 @@ function Cell({ device, col, index, onChange }) {
   if (col.type === 'number') {
     return <input type="number" value={value} onChange={e => set(Number(e.target.value))} className={cls} />
   }
-  // text (port: 시리얼 아니면 비활성 안내)
-  if (col.key === 'port' && !serial && device.protocol !== 'Modbus TCP' && device.protocol !== 'OPC-UA' && device.protocol !== 'MQTT') {
-    return <input value={value} onChange={e => set(e.target.value)} placeholder="—" className={cls} />
+  // 포트: 통신방식에 따라 (시리얼=COM3 / 이더넷=IP / 가상=—)
+  if (col.key === 'port') {
+    const conn = driverForDevice(device).conn
+    if (conn === 'virtual') return <span className="text-[9px] text-[#4a5568]">—</span>
+    return <input value={value} onChange={e => set(e.target.value)} placeholder={conn === 'serial' ? 'COM3' : 'IP'} className={cls} />
   }
-  return <input type="text" value={value} spellCheck={false} onChange={e => set(e.target.value)}
-    placeholder={col.key === 'port' ? (serial ? 'COM3' : 'IP') : ''} className={cls} />
+  return <input type="text" value={value} spellCheck={false} onChange={e => set(e.target.value)} className={cls} />
 }
 
 // 연결 버튼 (시리얼 디바이스만)
@@ -48,8 +70,9 @@ function ConnectBtn({ device }) {
   const [state, setState] = useState('idle') // idle | busy | ok | err
   const [msg, setMsg] = useState('')
 
+  const serialDev = driverForDevice(device).conn === 'serial'
   async function test() {
-    if (!isSerial(device.protocol)) return
+    if (!serialDev) return
     setState('busy'); setMsg('')
     try {
       await plcConnect({
@@ -62,7 +85,7 @@ function ConnectBtn({ device }) {
     }
   }
 
-  if (!isSerial(device.protocol)) return <span className="text-[9px] text-[#4a5568]">—</span>
+  if (!serialDev) return <span className="text-[9px] text-[#4a5568]">—</span>
   return (
     <button onClick={test} title={msg || '이 설정으로 PLC 연결 테스트'}
       className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-colors"
