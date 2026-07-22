@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import App from '../App.jsx'
 import Login from './Login'
+import Landing from './Landing'
 import { useAuth, doSignOut } from '../auth/useAuth'
 import { firebaseEnabled } from '../firebase'
 import { loadCloudProject, saveCloudProject } from '../data/cloudProject'
@@ -32,6 +33,7 @@ function UserChip({ user }) {
 export default function AuthGate() {
   const { user, loading } = useAuth()
   const [ready, setReady] = useState(!firebaseEnabled) // 미설정이면 즉시 준비됨(로컬 모드)
+  const [entering, setEntering] = useState(false)      // 랜딩 → 로그인 화면 전환
 
   useEffect(() => {
     if (!firebaseEnabled || !user) return
@@ -50,7 +52,7 @@ export default function AuthGate() {
 
   if (!firebaseEnabled) return <App />
   if (loading) return <Splash text="로딩 중…" />
-  if (!user) return <Login />
+  if (!user) return entering ? <Login onBack={() => setEntering(false)} /> : <Landing onStart={() => setEntering(true)} />
   if (!ready) return <Splash text="내 작업 불러오는 중…" />
   return <><App key={user.uid} /><UserChip user={user} /></>
 }

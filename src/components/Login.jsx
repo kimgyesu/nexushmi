@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { signInGoogle, signInEmail, signUpEmail } from '../auth/useAuth'
 
-export default function Login() {
+export default function Login({ onBack }) {
   const [mode, setMode] = useState('signin')   // signin | signup
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
@@ -18,6 +18,7 @@ export default function Login() {
   return (
     <div className="min-h-screen w-screen flex items-center justify-center" style={{ background: 'radial-gradient(1200px 600px at 50% -10%, #0f2b23, #070b12)' }}>
       <div className="w-[360px] rounded-2xl p-7" style={{ background: '#0f1520', border: '1px solid #1e2a3f', boxShadow: '0 20px 60px #0008' }}>
+        {onBack && <button onClick={onBack} className="text-[12px] text-[#64748b] hover:text-[#94a3b8] mb-3">← 홈으로</button>}
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[20px] font-extrabold tracking-tight"><span className="text-[#4a9eff]">Nexus</span><span className="text-[#e2e8f0]">HMI</span></span>
         </div>
