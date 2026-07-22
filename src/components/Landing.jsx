@@ -1,101 +1,130 @@
-// 웹사이트 메인(랜딩) 페이지 — AI 코어 히어로 (중앙 정렬, 겹침 없음)
-const FEATURES = [
-  { i: '🎨', t: '드래그 편집기', d: '도형·게이지·트렌드·심볼로 화면을 자유롭게 구성' },
-  { i: '▶️', t: '실시간 시뮬레이션', d: '가상 태그로 바로 실행하고 동작을 검증' },
-  { i: '📊', t: 'AI 분석 보고서', d: '트렌드·급변 원인 추적, 엑셀로 내보내기' },
-  { i: '☁️', t: '클라우드 저장', d: '로그인하면 어디서든 내 프로젝트 그대로' },
-]
-
-function MiniPanel({ title, accent, kind, className, rotate }) {
-  return (
-    <div className={`rounded-xl p-2.5 ${className}`} style={{
-      width: 150, background: 'linear-gradient(160deg,#0d1a33,#0a1120)', border: '1px solid #1c3a5e',
-      boxShadow: `0 0 24px ${accent}22`, transform: `perspective(900px) ${rotate}`,
-    }}>
-      <div className="flex items-center gap-1 mb-1.5">
-        <span style={{ width: 6, height: 6, borderRadius: 9, background: accent, boxShadow: `0 0 6px ${accent}` }} />
-        <span className="text-[9px] font-bold text-[#8fb4e0]">{title}</span>
-      </div>
-      <svg viewBox="0 0 140 52" width="100%">
-        {kind === 'bars' && [16, 30, 20, 36, 26, 42].map((h, i) => <rect key={i} x={8 + i * 22} y={48 - h} width={13} height={h} rx={2} fill={accent} opacity={0.55 + i * 0.06} />)}
-        {kind === 'trend' && <><polyline points="4,40 24,26 44,32 64,14 84,24 104,10 132,18" fill="none" stroke={accent} strokeWidth="2" /><polyline points="4,46 24,38 44,42 64,30 84,36 104,26 132,32" fill="none" stroke="#f472b6" strokeWidth="1.5" opacity="0.75" /></>}
-        {kind === 'ai' && <><circle cx="70" cy="24" r="15" fill="none" stroke={accent} strokeWidth="2" /><text x="70" y="29" textAnchor="middle" fontSize="13" fontWeight="800" fill={accent}>AI</text><circle cx="30" cy="46" r="2" fill="#6ee7b7" /><circle cx="70" cy="46" r="2" fill="#fbbf24" /><circle cx="110" cy="46" r="2" fill="#f472b6" /></>}
-      </svg>
-    </div>
-  )
-}
-
+// 웹사이트 메인(랜딩) 페이지 — 사용자 제공 디자인(HTML/CSS) 이식 + 로그인 연결
 export default function Landing({ onStart }) {
   return (
-    <div className="min-h-screen w-full overflow-x-hidden text-[#e6edf7]" style={{ background: '#060a12' }}>
-      <style>{`@keyframes nxPulse{0%,100%{opacity:.55}50%{opacity:1}}@keyframes nxFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+    <div className="nx-landing">
+      <style>{CSS}</style>
+      <div className="bg-glow" />
+      <div className="bg-wave" />
 
-      <nav className="relative z-20 flex items-center justify-between max-w-6xl mx-auto px-6 h-16">
-        <span className="text-[20px] font-extrabold tracking-tight"><span className="text-[#4a9eff]">Nexus</span><span>HMI</span></span>
-        <button onClick={onStart} className="text-[13px] font-bold px-4 py-2 rounded-lg border border-[#22406a] text-[#cbd5e1] hover:bg-[#0f1b30] transition-colors">로그인</button>
-      </nav>
+      <header>
+        <div className="logo">Nexus<span>HMI</span></div>
+        <button className="nav-btn" onClick={onStart}>로그인</button>
+      </header>
 
-      {/* 히어로 — 세로/가로 중앙 정렬 */}
-      <section className="relative flex items-center justify-center overflow-hidden" style={{ minHeight: 'calc(100vh - 64px)' }}>
-        {/* 배경 글로우 */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <radialGradient id="ctr" cx="50%" cy="45%" r="50%"><stop offset="0%" stopColor="#0e7490" stopOpacity="0.5" /><stop offset="45%" stopColor="#0c4a6e" stopOpacity="0.15" /><stop offset="100%" stopColor="#060a12" stopOpacity="0" /></radialGradient>
-            <linearGradient id="beam" x1="0" x2="1"><stop offset="0%" stopColor="#22d3ee" stopOpacity="0" /><stop offset="50%" stopColor="#67e8f9" stopOpacity="0.6" /><stop offset="100%" stopColor="#22d3ee" stopOpacity="0" /></linearGradient>
-          </defs>
-          <ellipse cx="600" cy="330" rx="540" ry="280" fill="url(#ctr)" />
-          <path d="M0,470 C300,440 900,500 1200,458" stroke="url(#beam)" strokeWidth="2" fill="none" opacity="0.8" />
-        </svg>
-
-        {/* 좌측 떠다니는 화면 (넓은 화면만) */}
-        <div className="hidden lg:flex flex-col gap-5 absolute left-[3%] top-1/2 -translate-y-1/2 z-0" style={{ animation: 'nxFloat 6s ease-in-out infinite' }}>
-          <MiniPanel title="화면 편집" kind="bars" accent="#38bdf8" rotate="rotateY(22deg) rotate(-3deg)" />
-          <MiniPanel title="실시간 트렌드" kind="trend" accent="#22d3ee" rotate="rotateY(18deg) rotate(-2deg)" className="ml-8" />
-        </div>
-        {/* 우측 떠다니는 화면 */}
-        <div className="hidden lg:flex flex-col gap-5 absolute right-[3%] top-1/2 -translate-y-1/2 z-0" style={{ animation: 'nxFloat 7s ease-in-out infinite reverse' }}>
-          <MiniPanel title="AI 분석 보고서" kind="ai" accent="#34d399" rotate="rotateY(-22deg) rotate(3deg)" />
-          <MiniPanel title="패턴·고장 예측" kind="trend" accent="#a78bfa" rotate="rotateY(-18deg) rotate(2deg)" className="mr-8 self-end" />
+      <main>
+        <div className="badge">
+          <span className="badge-icon" />
+          <span>클라우드 · 어디서든 이어서 작업</span>
         </div>
 
-        {/* 중앙 콘텐츠 */}
-        <div className="relative z-10 w-full max-w-xl mx-auto px-6 text-center">
-          <span className="inline-block text-[11px] font-bold px-3 py-1 rounded-full" style={{ background: 'rgba(15,43,35,0.7)', color: '#6ee7b7', border: '1px solid #14532d' }}>☁️ 클라우드 · 어디서든 이어서 작업</span>
-          <h1 className="mt-6 text-[36px] sm:text-[52px] font-extrabold leading-[1.08] tracking-tight">
-            브라우저로 만드는<br /><span style={{ background: 'linear-gradient(90deg,#67e8f9,#4a9eff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>산업용 HMI · SCADA</span>
-          </h1>
+        <h1 className="hero-title">
+          브라우저로 만드는<br />
+          <span className="highlight">산업용 HMI · SCADA</span>
+        </h1>
 
-          <div className="my-6 flex justify-center" style={{ animation: 'nxPulse 3s ease-in-out infinite' }}>
-            <svg width="132" height="108" viewBox="0 0 132 108">
-              <defs><radialGradient id="core" cx="50%" cy="45%" r="55%"><stop offset="0%" stopColor="#67e8f9" stopOpacity="0.85" /><stop offset="60%" stopColor="#0891b2" stopOpacity="0.3" /><stop offset="100%" stopColor="#0891b2" stopOpacity="0" /></radialGradient></defs>
-              <ellipse cx="66" cy="52" rx="56" ry="42" fill="url(#core)" />
-              <polygon points="66,18 96,36 96,68 66,86 36,68 36,36" fill="#06131f" stroke="#22d3ee" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 7px #22d3ee)' }} />
-              <text x="66" y="60" textAnchor="middle" fontSize="21" fontWeight="800" fill="#67e8f9" style={{ filter: 'drop-shadow(0 0 5px #22d3ee)' }}>AI</text>
+        <div className="ai-centerpiece">
+          <div className="ai-circle" />
+          <div className="ai-core">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2a10 10 0 0 0-10 10c0 5.5 4.5 10 10 10s10-4.5 10-10A10 10 0 0 0 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 13v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
             </svg>
           </div>
-
-          <h2 className="text-[19px] sm:text-[22px] font-extrabold text-[#dbeafe]">AI 기반의 차세대 제어</h2>
-          <p className="mt-3 text-[15px] text-[#93a4bd] leading-relaxed">드래그로 화면을 그리고, 실시간 시뮬레이션과 AI 분석 보고서까지. 설치 없이 웹에서 바로, 로그인하면 어디서든 이어서 작업하세요.</p>
-          <div className="mt-7 flex justify-center">
-            <button onClick={onStart} className="h-12 px-8 rounded-xl font-bold text-[15px] text-white transition-transform hover:scale-[1.03]"
-              style={{ background: 'linear-gradient(180deg,#22c55e,#15803d)', border: '1px solid #4ade80', boxShadow: '0 0 30px rgba(34,197,94,0.45)' }}>무료로 시작하기 →</button>
-          </div>
-          <p className="mt-3 text-[12px] text-[#5b6b83]">구글 계정으로 30초면 시작</p>
         </div>
-      </section>
 
-      {/* 기능 카드 */}
-      <section className="max-w-5xl mx-auto px-6 py-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {FEATURES.map(f => (
-          <div key={f.t} className="rounded-2xl p-5" style={{ background: '#0c1424', border: '1px solid #16233a' }}>
-            <div className="text-[26px] mb-2">{f.i}</div>
-            <h3 className="font-bold text-[15px] mb-1">{f.t}</h3>
-            <p className="text-[12px] text-[#7c8aa5] leading-relaxed">{f.d}</p>
+        <h2 className="sub-heading">AI 기반의 차세대 제어</h2>
+
+        <p className="hero-desc">
+          드래그로 화면을 그리고, 실시간 시뮬레이션과 <strong>AI 분석 보고서</strong>까지.<br />
+          설치 없이 웹에서 바로, 로그인하면 어디서든 이어서 작업하세요.
+        </p>
+
+        <div className="cta-container">
+          <button className="cta-btn" onClick={onStart}>
+            <span>무료로 시작하기</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
+          <span className="cta-subtext">구글 계정으로 30초면 시작</span>
+        </div>
+
+        <div className="features-grid">
+          <div className="card">
+            <div className="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.5 7.5" /></svg></div>
+            <h3 className="card-title">드래그 편집기</h3>
+            <p className="card-desc">도형·게이지·트렌드·심볼로 화면을 자유롭게 구성하세요.</p>
           </div>
-        ))}
-      </section>
+          <div className="card">
+            <div className="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg></div>
+            <h3 className="card-title">실시간 시뮬레이션</h3>
+            <p className="card-desc">가상 태그로 바로 실행하고 동작을 즉시 검증하세요.</p>
+          </div>
+          <div className="card">
+            <div className="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg></div>
+            <h3 className="card-title">AI 분석 보고서</h3>
+            <p className="card-desc">트렌드 및 급변 원인을 추적하고 엑셀 보고서로 내보내세요.</p>
+          </div>
+          <div className="card">
+            <div className="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></svg></div>
+            <h3 className="card-title">클라우드 자동 저장</h3>
+            <p className="card-desc">로그인하면 어디서든 내 프로젝트 그대로 이어 작업하세요.</p>
+          </div>
+        </div>
 
-      <footer className="border-t border-[#111a28] py-6 text-center text-[12px] text-[#475569]">© 2026 NexusHMI · 웹 기반 SCADA / HMI 편집기</footer>
+        <div className="footer-banner">
+          <h3>지금 바로 시작하세요</h3>
+          <p>무료입니다. 작업물은 자동으로 클라우드에 안전하게 저장됩니다.</p>
+          <button className="cta-btn" style={{ padding: '0.75rem 1.8rem', fontSize: '1rem' }} onClick={onStart}>
+            <span>시작하기</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+          </button>
+          <div className="copyright">© 2026 NexusHMI · 웹 기반 SCADA / HMI 편집기</div>
+        </div>
+      </main>
     </div>
   )
 }
+
+const CSS = `
+.nx-landing { --bg-dark:#070a12; --primary-glow:#00f2ff; --secondary-glow:#0066ff; --accent-green:#10b981; --card-bg:rgba(13,20,38,0.5); --card-border:rgba(0,242,255,0.15); --card-border-hover:rgba(0,242,255,0.4); --text-main:#f3f4f6; --text-sub:#9ca3af;
+  background-color:var(--bg-dark); color:var(--text-main); min-height:100vh; overflow-x:hidden; position:relative; font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,Roboto,sans-serif; }
+.nx-landing * { margin:0; padding:0; box-sizing:border-box; font-family:inherit; }
+.nx-landing .bg-glow { position:absolute; top:15%; left:50%; transform:translate(-50%,-50%); width:600px; height:350px; background:radial-gradient(ellipse at center, rgba(0,102,255,0.25) 0%, rgba(0,242,255,0.1) 40%, rgba(7,10,18,0) 70%); z-index:0; pointer-events:none; filter:blur(40px); }
+.nx-landing .bg-wave { position:absolute; top:28%; left:0; width:100%; height:300px; background:linear-gradient(90deg, transparent, rgba(0,242,255,0.05), rgba(0,102,255,0.08), transparent); transform:skewY(-4deg); z-index:0; pointer-events:none; }
+.nx-landing header { display:flex; justify-content:space-between; align-items:center; padding:1.5rem 4rem; position:relative; z-index:10; max-width:1400px; margin:0 auto; }
+.nx-landing .logo { font-size:1.5rem; font-weight:800; letter-spacing:-0.5px; color:#fff; display:flex; align-items:center; }
+.nx-landing .logo span { color:var(--primary-glow); text-shadow:0 0 12px rgba(0,242,255,0.6); }
+.nx-landing .nav-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); color:#fff; padding:0.5rem 1.4rem; border-radius:8px; font-weight:500; font-size:0.9rem; cursor:pointer; transition:all 0.3s ease; }
+.nx-landing .nav-btn:hover { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.3); box-shadow:0 0 15px rgba(255,255,255,0.1); }
+.nx-landing main { max-width:1200px; margin:0 auto; padding:2rem 1.5rem 5rem; position:relative; z-index:1; text-align:center; }
+.nx-landing .badge { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(0,242,255,0.08); border:1px solid rgba(0,242,255,0.25); padding:0.4rem 1.1rem; border-radius:50px; font-size:0.85rem; color:#e0f7fa; margin-bottom:2rem; box-shadow:0 0 15px rgba(0,242,255,0.1); }
+.nx-landing .badge-icon { width:8px; height:8px; background-color:var(--primary-glow); border-radius:50%; box-shadow:0 0 8px var(--primary-glow); }
+.nx-landing .hero-title { font-size:3.2rem; font-weight:800; line-height:1.25; letter-spacing:-1px; margin-bottom:1.5rem; background:linear-gradient(180deg,#fff 30%,#a5f3fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-shadow:0 10px 30px rgba(0,0,0,0.5); }
+.nx-landing .hero-title .highlight { background:linear-gradient(90deg,#38bdf8,#00f2ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.nx-landing .ai-centerpiece { position:relative; width:140px; height:140px; margin:1.5rem auto 2rem; display:flex; align-items:center; justify-content:center; }
+.nx-landing .ai-circle { position:absolute; width:100%; height:100%; border-radius:50%; background:radial-gradient(circle, rgba(0,242,255,0.15) 0%, transparent 70%); border:1px solid rgba(0,242,255,0.4); box-shadow:0 0 30px rgba(0,242,255,0.25), inset 0 0 20px rgba(0,242,255,0.2); animation:nxPulse 3s infinite alternate; }
+.nx-landing .ai-core { width:70px; height:70px; background:linear-gradient(135deg,#00f2ff,#0055ff); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 25px rgba(0,242,255,0.8); z-index:2; }
+.nx-landing .ai-core svg { width:36px; height:36px; fill:#fff; filter:drop-shadow(0 0 4px rgba(255,255,255,0.8)); }
+@keyframes nxPulse { 0%{transform:scale(0.95); opacity:0.8;} 100%{transform:scale(1.08); opacity:1; box-shadow:0 0 45px rgba(0,242,255,0.4);} }
+.nx-landing .sub-heading { font-size:1.8rem; font-weight:700; color:#fff; margin-bottom:1rem; letter-spacing:-0.5px; }
+.nx-landing .hero-desc { font-size:1.05rem; color:var(--text-sub); line-height:1.6; max-width:680px; margin:0 auto 2.5rem; font-weight:400; }
+.nx-landing .hero-desc strong { color:var(--primary-glow); font-weight:600; }
+.nx-landing .cta-container { margin-bottom:4rem; }
+.nx-landing .cta-btn { display:inline-flex; align-items:center; gap:0.6rem; background:linear-gradient(135deg,#059669 0%,#10b981 100%); color:#fff; font-size:1.1rem; font-weight:700; padding:0.9rem 2.2rem; border-radius:12px; cursor:pointer; box-shadow:0 0 25px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.3); border:1px solid rgba(52,211,153,0.5); transition:all 0.3s cubic-bezier(0.4,0,0.2,1); }
+.nx-landing .cta-btn:hover { transform:translateY(-2px); box-shadow:0 0 35px rgba(16,185,129,0.6), inset 0 1px 0 rgba(255,255,255,0.5); background:linear-gradient(135deg,#047857 0%,#059669 100%); }
+.nx-landing .cta-subtext { display:block; margin-top:0.7rem; font-size:0.85rem; color:#6b7280; }
+.nx-landing .features-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; margin-top:2rem; }
+.nx-landing .card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:1.8rem 1.4rem; text-align:left; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:all 0.3s ease; position:relative; overflow:hidden; }
+.nx-landing .card::before { content:''; position:absolute; top:0; left:0; width:100%; height:2px; background:linear-gradient(90deg, transparent, var(--primary-glow), transparent); opacity:0; transition:opacity 0.3s ease; }
+.nx-landing .card:hover { transform:translateY(-4px); border-color:var(--card-border-hover); box-shadow:0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.1); }
+.nx-landing .card:hover::before { opacity:1; }
+.nx-landing .card-icon { width:44px; height:44px; border-radius:10px; background:rgba(0,242,255,0.1); border:1px solid rgba(0,242,255,0.2); display:flex; align-items:center; justify-content:center; margin-bottom:1.2rem; color:var(--primary-glow); }
+.nx-landing .card-title { font-size:1.15rem; font-weight:700; color:#fff; margin-bottom:0.6rem; }
+.nx-landing .card-desc { font-size:0.88rem; color:var(--text-sub); line-height:1.5; }
+.nx-landing .footer-banner { margin-top:5rem; padding-top:3rem; border-top:1px solid rgba(255,255,255,0.08); }
+.nx-landing .footer-banner h3 { font-size:1.6rem; font-weight:700; margin-bottom:0.6rem; }
+.nx-landing .footer-banner p { color:var(--text-sub); font-size:0.95rem; margin-bottom:1.5rem; }
+.nx-landing .copyright { margin-top:4rem; font-size:0.8rem; color:#4b5563; }
+@media (max-width:1024px){ .nx-landing .features-grid{ grid-template-columns:repeat(2,1fr);} }
+@media (max-width:640px){ .nx-landing header{ padding:1rem 1.5rem;} .nx-landing .hero-title{ font-size:2.2rem;} .nx-landing .sub-heading{ font-size:1.4rem;} .nx-landing .features-grid{ grid-template-columns:1fr;} }
+`
