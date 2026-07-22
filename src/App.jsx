@@ -22,8 +22,10 @@ import { makeFactoryDemo } from './data/demoFactory'
 import { makeGreenhouseDemo } from './data/demoGreenhouse'
 import { resolvePanelStyle, loadActiveStyleKey, saveActiveStyleKey } from './data/panelStyles'
 import FileMenu, { addRecentFile } from './components/FileMenu'
+import { useAccess } from './auth/access'
+import { doSignOut } from './auth/useAuth'
 import {
-  Activity, Wifi, Clock, Bell, Settings,
+  Activity, Wifi, Clock, Bell, Settings, LogOut,
   FilePlus2, Layers, Play, Save, Database, Cpu, Download, FolderOpen, LayoutGrid, Brain,
 } from 'lucide-react'
 
@@ -288,6 +290,7 @@ function maxIdNumAll(screens) {
 
 /* ── Top/Project bars ── */
 function TopBar({ tags }) {
+  const access = useAccess()
   const alarmCount = tags.filter(t => t.type !== 'BIT' && (t.value / t.max) > 0.85).length
   const now = new Date().toLocaleString('ko', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' })
   return (
@@ -332,6 +335,16 @@ function TopBar({ tags }) {
         <button className="p-1 rounded hover:bg-[#2d3748] text-[#4a5568] hover:text-[#e2e8f0] transition-colors">
           <Settings size={13} />
         </button>
+        {access.user && (
+          <div className="flex items-center gap-1.5 pl-2.5 ml-0.5 border-l border-[#2d3748]">
+            {access.owner && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#14532d] text-[#4ade80] border border-[#166534]">OWNER</span>}
+            <span className="text-[10px] text-[#94a3b8] max-w-[150px] truncate hidden sm:inline">{access.user.email}</span>
+            <button onClick={doSignOut} title="로그아웃"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-[#f87171] hover:bg-[#450a0a] hover:text-[#fca5a5] transition-colors">
+              <LogOut size={12} /> 로그아웃
+            </button>
+          </div>
+        )}
       </div>
     </header>
   )

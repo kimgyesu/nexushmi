@@ -54,5 +54,5 @@ export default function AuthGate() {
   if (loading) return <Splash text="로딩 중…" />
   if (!user) return entering ? <Login onBack={() => setEntering(false)} /> : <Landing onStart={() => setEntering(true)} />
   if (!ready) return <Splash text="내 작업 불러오는 중…" />
-  return <><App key={user.uid} /><UserChip user={user} /></>
+  return <App key={user.uid} />
 }
