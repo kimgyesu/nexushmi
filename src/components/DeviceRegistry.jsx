@@ -115,7 +115,7 @@ export default function DeviceRegistry({ open, devices, drivers = [], onClose, o
           <button onClick={() => setEditorDriver(null)}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#a78bfa] hover:bg-[#2d1b4e] transition-colors"
             style={{ border: '1px solid #7c3aed' }}>
-            <Plus size={13} /> 커스텀 드라이버
+            <Plus size={13} /> 드라이버 추가
           </button>
           <button onClick={() => onAddDevice(makeDevice({ name: '' }))}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#00d4ff] hover:bg-[#0f2444] transition-colors"
