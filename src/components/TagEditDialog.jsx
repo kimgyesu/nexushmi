@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, Tag as TagIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Tag as TagIcon, ChevronLeft, ChevronRight, Calculator } from 'lucide-react'
 import { VIRTUAL_DEVICE, isVirtualDevice } from '../data/tags'
 import { driverForDevice, driverAreas, normalizeForDriver, validateForDriver, parseAreaAddr } from '../data/drivers'
+import { tryFormula, formulaVars } from '../utils/formula'
 
 // 종류 → 타입 매핑
 const isDigital = t => t === 'BIT'
@@ -34,6 +35,9 @@ const fromTag = t => ({
   digits: t?.digits ?? 0,
   value: t?.value ?? 0,
   inputMode: t?.inputMode || 'none',
+  formula: t?.formula || '',
+  watchActual: t?.watchActual || '',
+  watchTol: t?.watchTol ?? 5,
 })
 
 // ── I/O 어드레스 필드 (실 디바이스: 영역 드롭다운 재사용) ─────────────────────
@@ -82,7 +86,7 @@ const inp = 'w-full text-[12px] rounded px-2 py-1.5 bg-[#0f172a] border border-[
 const inpRO = 'w-full text-[12px] rounded px-2 py-1.5 bg-[#0b1220] border border-[#182238] text-[#64748b] focus:outline-none cursor-not-allowed'
 const lbl = 'text-[10px] font-bold text-[#7c8aa5] mb-1 block'
 
-export default function TagEditDialog({ open, isNew, tag, groups = [], devices = [], pos, canPrev, canNext, onCommit, onNav, onClose }) {
+export default function TagEditDialog({ open, isNew, tag, groups = [], devices = [], allTags = [], pos, canPrev, canNext, onCommit, onNav, onClose }) {
   const [tab, setTab] = useState('general')
   const [form, setForm] = useState(() => fromTag(tag))
   const tagKey = isNew ? '__new__' : `${tag?.id}#${pos?.cur}`
@@ -101,6 +105,9 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
       unit: form.unit, min: num(form.min, 0), max: num(form.max, form.type === 'BIT' ? 1 : 100),
       decimals: Math.max(0, Math.min(6, num(form.decimals, 0))), digits: Math.max(0, num(form.digits, 0)),
       value: num(form.value, 0), inputMode: form.inputMode,
+      formula: form.formula.trim(),
+      watchActual: form.formula.trim() ? form.watchActual : '',
+      watchTol: num(form.watchTol, 5),
     }
   }
   function submit() {
@@ -121,6 +128,22 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
       <input type="radio" checked={kind === k} onChange={() => setKind(k)} style={{ accentColor: '#3b82f6' }} /> {label}
     </label>
   )
+
+  // 계산 태그(수식) 미리보기 — 다른 태그 현재값으로 계산
+  const tagVals = {}; for (const t of allTags) if (t.id !== form.id) tagVals[t.id] = Number(t.value) || 0
+  const fExpr = form.formula.trim()
+  const fPreview = fExpr ? tryFormula(fExpr, tagVals) : null
+  const fUnknown = fExpr ? formulaVars(fExpr).filter(v => !(v in tagVals) && !['PI', 'E', 'TRUE', 'FALSE'].includes(v.toUpperCase())) : []
+  // 예상↔실제 감시 미리보기
+  const watchAct = fExpr && form.watchActual ? allTags.find(t => t.id === form.watchActual) : null
+  let watchDev = null, watchOver = false
+  if (watchAct && fPreview && !fPreview.error) {
+    const exp = Number(fPreview.value), actual = Number(watchAct.value) || 0
+    const base = Math.abs(exp) > 1e-9 ? Math.abs(exp) : (Math.abs(actual) || 1)
+    watchDev = Math.abs(exp - actual) / base * 100
+    watchOver = watchDev > (Number(form.watchTol) || 5)
+  }
+
   return (
     <div className="fixed inset-0 z-[320] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }}
       onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
@@ -212,6 +235,50 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
 
             {tab === 'advanced' && (
               <div className="space-y-3 p-3 rounded" style={{ background: '#0f172a', border: '1px solid #1e2a4a' }}>
+                {/* 계산 태그 (수식) */}
+                <div className="p-2.5 rounded" style={{ background: '#0b1220', border: '1px solid #1e3a5f' }}>
+                  <label className={lbl + ' flex items-center gap-1'}><Calculator size={11} className="text-[#60a5fa]" /> 계산 수식 <span className="text-[#4a5568] font-normal">(다른 태그로 자동 계산 — 비우면 일반 태그)</span></label>
+                  <textarea className={inp + ' font-mono resize-none'} rows={2} value={form.formula}
+                    onChange={e => set('formula', e.target.value)}
+                    placeholder="예: TAG_LINE_SPEED / (PI * (TAG_DIA/1000))" />
+                  {fExpr && (
+                    <div className="mt-1.5 text-[11px] font-mono">
+                      {fUnknown.length > 0
+                        ? <span className="text-[#f59e0b]">⚠ 없는 태그: {fUnknown.join(', ')}</span>
+                        : fPreview?.error
+                          ? <span className="text-[#f87171]">❌ {fPreview.error}</span>
+                          : <span className="text-[#22c55e]">✓ 현재 계산값 = {Number(fPreview?.value).toFixed(form.decimals || 2)}</span>}
+                    </div>
+                  )}
+                  <div className="mt-1 text-[9px] text-[#4a5568] leading-relaxed">
+                    태그ID로 참조 · <span className="font-mono">+ - * / % ^ ( )</span> · 함수 <span className="font-mono">sqrt abs min max round</span> · 조건 <span className="font-mono">A&gt;10 ? 1 : 0</span> · 상수 <span className="font-mono">PI</span>
+                  </div>
+                </div>
+
+                {/* 예상 ↔ 실제 감시 (계산 수식이 있을 때만) */}
+                {fExpr && (
+                  <div className="p-2.5 rounded" style={{ background: '#1a1206', border: '1px solid #78500f' }}>
+                    <label className={lbl}>🔍 예상 ↔ 실제 감시 <span className="text-[#4a5568] font-normal">(런타임 AI가 편차 넘으면 알림)</span></label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[9px] text-[#7c8aa5] block mb-0.5">실제 측정 태그</span>
+                        <select className={inp} value={form.watchActual} onChange={e => set('watchActual', e.target.value)}>
+                          <option value="">(감시 안 함)</option>
+                          {allTags.filter(t => t.id !== form.id && !t.formula).map(t => <option key={t.id} value={t.id}>{t.desc || t.id}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-[#7c8aa5] block mb-0.5">허용 편차 %</span>
+                        <input type="number" className={inp} value={form.watchTol} min={0} onChange={e => set('watchTol', e.target.value)} />
+                      </div>
+                    </div>
+                    {watchDev != null && (
+                      <div className="mt-1.5 text-[11px] font-mono" style={{ color: watchOver ? '#f59e0b' : '#22c55e' }}>
+                        예상 {Number(fPreview.value).toFixed(1)} vs 실제 {(Number(watchAct?.value) || 0).toFixed(1)} → 편차 {Math.round(watchDev)}% {watchOver ? '⚠ 허용 초과' : '✓ 정상'}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className={lbl}>태그 ID <span className="text-[#4a5568] font-normal">(비우면 자동생성 · 변경 시 화면 바인딩 끊길 수 있음)</span></label>
                   <input className={inp + ' font-mono'} value={form.id} onChange={e => set('id', e.target.value)} placeholder={autoId(form.utility, form.desc)} />

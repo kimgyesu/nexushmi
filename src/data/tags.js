@@ -120,6 +120,9 @@ export function makeTag(p = {}) {
     value,
     ...(p.alarmHint ? { alarmHint: String(p.alarmHint) } : {}),
     ...(p.note ? { note: String(p.note) } : {}),
+    ...(p.formula ? { formula: String(p.formula) } : {}),   // 계산 태그: 다른 태그값으로 수식 계산
+    ...(p.watchActual ? { watchActual: String(p.watchActual) } : {}),   // 예상↔실제 감시: 실제 측정 태그 id
+    ...(p.watchTol != null && p.watchTol !== '' ? { watchTol: Number(p.watchTol) } : {}),   // 허용 편차 %
   }
 }
 

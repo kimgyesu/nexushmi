@@ -6,6 +6,7 @@ import { loadGlobalSymbols } from '../data/symbols'
 import { driverForDevice, normalizeForDriver } from '../data/drivers'
 import { postEvents, plcConnect, plcRead, plcWrite } from '../utils/api'
 import { createLogger } from '../utils/dataLogger'
+import { tryFormula } from '../utils/formula'
 import { loadProject } from '../data/project'
 import { RENDERERS, resolveTag, tagAlarmLevel, elementBBox } from './ScadaCanvas'
 import RuntimeAI from './RuntimeAI'
@@ -44,14 +45,35 @@ export default function Runtime() {
   const plcDriver = plcDev ? driverForDevice(plcDev) : null
   // 태그 주소를 드라이버 형식으로 정규화 (Modbus는 그대로 M100/D100, XGT/LS는 %DW100/%MX 로)
   const plcItems = useRef(plcDev
-    ? (project.tags || []).filter(t => t.device === plcDev.name && t.address && !isVirtualDevice(t.device))
+    ? (project.tags || []).filter(t => t.device === plcDev.name && t.address && !isVirtualDevice(t.device) && !t.formula)
         .map(t => ({ id: t.id, device: normalizeForDriver(plcDriver, t.address, t.type), type: t.type }))
     : []).current
-  const plcSkipIds = useRef(new Set(plcItems.map(i => i.id))).current
+  // 계산 태그(수식) — 시뮬/폴링 대상에서 제외 (수식으로 계산됨)
+  const formulaIds = useRef(new Set((project.tags || []).filter(t => t.formula).map(t => t.id))).current
+  const plcSkipIds = useRef(new Set([...plcItems.map(i => i.id), ...formulaIds])).current
   const [plcOn, setPlcOn] = useState(false)
 
-  // 실 PLC 폴링 태그는 시뮬 제외 (실제 값으로 갱신)
+  // 실 PLC 폴링/계산 태그는 시뮬 제외 (실제 값·수식으로 갱신)
   useValueSimulator(setTags, false, 2500, plcSkipIds)
+
+  // ── 계산 태그 평가 (다른 태그값으로 수식 계산, 300ms 주기) ──
+  useEffect(() => {
+    if (!formulaIds.size) return
+    const id = setInterval(() => {
+      setTags(prev => {
+        const byId = {}; for (const t of prev) byId[t.id] = Number(t.value) || 0
+        let changed = false
+        const next = prev.map(t => {
+          if (!t.formula) return t
+          const { value } = tryFormula(t.formula, byId)
+          if (value != null && value !== t.value) { changed = true; return { ...t, value } }
+          return t
+        })
+        return changed ? next : prev
+      })
+    }, 300)
+    return () => clearInterval(id)
+  }, [])
 
   // ── 실 PLC 실시간 폴링 (RUN 시 자동 연결 → 1초마다 읽어 태그 갱신) ──
   useEffect(() => {

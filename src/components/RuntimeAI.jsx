@@ -30,9 +30,24 @@ const SEV_META = {
   경보: { o: 3, color: '#ef4444', bg: '#2a0e0e', border: '#7f1d1d', icon: '🔴' },
   주의: { o: 2, color: '#f59e0b', bg: '#2a1e0a', border: '#78500f', icon: '🟡' },
 }
-// 규칙 기반 이상 감지(결정적) — 상한 근접·알람비트 ON·급변
+// 규칙 기반 이상 감지(결정적) — 상한 근접·알람비트 ON·급변 + 예상(수식)↔실제 편차
 function scanFindings(tags, prev) {
   const out = []
+  const byId = {}; for (const t of tags) byId[t.id] = t
+  // 예상(계산 태그) ↔ 실제(측정 태그) 편차 감시 — 허용% 초과 시
+  for (const t of tags) {
+    if (!t.formula || !t.watchActual) continue
+    const act = byId[t.watchActual]; if (!act) continue
+    const expected = Number(t.value) || 0, actual = Number(act.value) || 0
+    const tol = Number.isFinite(+t.watchTol) ? +t.watchTol : 5
+    const base = Math.abs(expected) > 1e-9 ? Math.abs(expected) : (Math.abs(actual) || 1)
+    const devPct = Math.abs(expected - actual) / base * 100
+    if (devPct > tol) {
+      const sev = devPct > tol * 2 ? '경보' : '주의'
+      out.push({ sev, tagId: t.id, hint: t.alarmHint || `${act.desc || act.id} 센서·계수 확인`,
+        text: `${t.desc || t.id}: 예상 ${numf(expected)} vs 실제 ${numf(actual)}${act.unit || ''} — 편차 ${Math.round(devPct)}% (허용 ${tol}%)` })
+    }
+  }
   for (const t of tags) {
     const hint = t.alarmHint || ''
     if (t.type === 'BIT') {

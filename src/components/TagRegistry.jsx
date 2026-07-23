@@ -691,6 +691,7 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
       tag={editTag}
       groups={groups}
       devices={devices}
+      allTags={tags}
       pos={editPos >= 0 ? { cur: editPos, total: navList.length } : null}
       canPrev={editPos > 0}
       canNext={editPos >= 0 && editPos < navList.length - 1}
