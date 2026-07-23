@@ -1,5 +1,24 @@
 // 웹사이트 메인(랜딩) 페이지 — 사용자 제공 디자인(HTML/CSS) 이식 + 로그인 연결
+import { PRESETS } from '../data/presets'
+
+// 랜딩 소개용 — 프리셋 id → 카테고리 (에디터 갤러리와 같은 데이터 공유)
+const TPL_CAT = {
+  recoiler:        { label: '권취', color: '#22c55e' },
+  recoiler_torque: { label: '권취', color: '#22c55e' },
+  uncoiler:        { label: '권출', color: '#38bdf8' },
+  efficiency:      { label: '일반', color: '#a78bfa' },
+}
+const ROLE_LABEL = { input: '측정', setpoint: '설정', calc: '계산' }
+function roleCounts(tags) {
+  const c = { input: 0, setpoint: 0, calc: 0 }
+  for (const t of tags) c[t.role || 'input'] = (c[t.role || 'input'] || 0) + 1
+  return c
+}
+
 export default function Landing({ onStart }) {
+  const scrollToTemplates = () =>
+    document.getElementById('nx-templates')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
   return (
     <div className="nx-landing">
       <style>{CSS}</style>
@@ -8,7 +27,10 @@ export default function Landing({ onStart }) {
 
       <header>
         <div className="logo">Nexus<span>HMI</span></div>
-        <button className="nav-btn" onClick={onStart}>로그인</button>
+        <nav className="nav-links">
+          <button className="nav-link" onClick={scrollToTemplates}>템플릿</button>
+          <button className="nav-btn" onClick={onStart}>로그인</button>
+        </nav>
       </header>
 
       <main>
@@ -71,6 +93,49 @@ export default function Landing({ onStart }) {
           </div>
         </div>
 
+        {/* ── 템플릿 소개 (구경용 — 실제 사용은 로그인 후 편집기에서) ── */}
+        <section id="nx-templates" className="tpl-section">
+          <span className="tpl-eyebrow">검증된 제어 템플릿</span>
+          <h2 className="tpl-title">복잡한 계산, <span>클릭 한 번</span>으로 태그 세트 완성</h2>
+          <p className="tpl-sub">
+            리코일러·언코일러 장력제어 같은 어려운 수식을 미리 만들어 뒀어요.<br />
+            템플릿을 추가하고 PLC 주소만 연결하면 끝. <strong>로그인 후 편집기에서 바로 사용</strong>하세요.
+          </p>
+
+          <div className="tpl-grid">
+            {PRESETS.map(p => {
+              const cat = TPL_CAT[p.id] || { label: '일반', color: '#a78bfa' }
+              const star = p.name.includes('⭐')
+              const title = p.name.replace('⭐', '').trim()
+              const counts = roleCounts(p.tags)
+              return (
+                <button key={p.id} className="tpl-card" onClick={onStart} title="로그인하고 사용하기">
+                  <div className="tpl-card-top">
+                    <span className="tpl-chip" style={{ background: cat.color + '22', color: cat.color, border: `1px solid ${cat.color}55` }}>{cat.label}</span>
+                    {star && <span className="tpl-star">★ 추천</span>}
+                  </div>
+                  <h3 className="tpl-card-title">{title}</h3>
+                  <p className="tpl-card-desc">{p.tagline || p.desc}</p>
+                  <div className="tpl-badges">
+                    {Object.entries(counts).filter(([, n]) => n > 0).map(([role, n]) => (
+                      <span key={role} className="tpl-badge">{ROLE_LABEL[role]} {n}</span>
+                    ))}
+                  </div>
+                  <span className="tpl-card-use">로그인하고 사용 →</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="tpl-foot">
+            <button className="cta-btn" onClick={onStart}>
+              <span>로그인하고 템플릿 쓰기</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+            </button>
+            <span className="tpl-market">🏪 직접 만든 템플릿을 마켓에 공유·판매 — 준비중</span>
+          </div>
+        </section>
+
         <div className="footer-banner">
           <h3>지금 바로 시작하세요</h3>
           <p>무료입니다. 작업물은 자동으로 클라우드에 안전하게 저장됩니다.</p>
@@ -125,6 +190,30 @@ const CSS = `
 .nx-landing .footer-banner h3 { font-size:1.6rem; font-weight:700; margin-bottom:0.6rem; }
 .nx-landing .footer-banner p { color:var(--text-sub); font-size:0.95rem; margin-bottom:1.5rem; }
 .nx-landing .copyright { margin-top:4rem; font-size:0.8rem; color:#4b5563; }
-@media (max-width:1024px){ .nx-landing .features-grid{ grid-template-columns:repeat(2,1fr);} }
-@media (max-width:640px){ .nx-landing header{ padding:1rem 1.5rem;} .nx-landing .hero-title{ font-size:2.2rem;} .nx-landing .sub-heading{ font-size:1.4rem;} .nx-landing .features-grid{ grid-template-columns:1fr;} }
+.nx-landing .nav-links { display:flex; align-items:center; gap:1.3rem; }
+.nx-landing .nav-link { background:none; border:none; color:var(--text-sub); font-size:0.9rem; font-weight:500; cursor:pointer; transition:color 0.2s ease; }
+.nx-landing .nav-link:hover { color:#fff; text-shadow:0 0 10px rgba(0,242,255,0.4); }
+.nx-landing .tpl-section { margin-top:6rem; text-align:center; scroll-margin-top:2rem; }
+.nx-landing .tpl-eyebrow { display:inline-block; font-size:0.78rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--primary-glow); margin-bottom:0.9rem; }
+.nx-landing .tpl-title { font-size:2.2rem; font-weight:800; letter-spacing:-0.5px; margin-bottom:1rem; color:#fff; line-height:1.25; }
+.nx-landing .tpl-title span { background:linear-gradient(90deg,#38bdf8,#00f2ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.nx-landing .tpl-sub { font-size:1.02rem; color:var(--text-sub); line-height:1.65; max-width:660px; margin:0 auto 2.8rem; }
+.nx-landing .tpl-sub strong { color:var(--primary-glow); font-weight:600; }
+.nx-landing .tpl-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; }
+.nx-landing .tpl-card { text-align:left; background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:1.5rem 1.3rem; cursor:pointer; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:all 0.3s ease; display:flex; flex-direction:column; gap:0.7rem; position:relative; overflow:hidden; color:inherit; font-family:inherit; }
+.nx-landing .tpl-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:2px; background:linear-gradient(90deg, transparent, var(--primary-glow), transparent); opacity:0; transition:opacity 0.3s ease; }
+.nx-landing .tpl-card:hover { transform:translateY(-4px); border-color:var(--card-border-hover); box-shadow:0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.12); }
+.nx-landing .tpl-card:hover::before { opacity:1; }
+.nx-landing .tpl-card-top { display:flex; align-items:center; gap:0.5rem; }
+.nx-landing .tpl-chip { font-size:0.7rem; font-weight:700; padding:0.15rem 0.65rem; border-radius:50px; }
+.nx-landing .tpl-star { font-size:0.72rem; color:#fbbf24; font-weight:700; }
+.nx-landing .tpl-card-title { font-size:1.02rem; font-weight:700; color:#fff; line-height:1.35; }
+.nx-landing .tpl-card-desc { font-size:0.85rem; color:var(--text-sub); line-height:1.55; flex:1; }
+.nx-landing .tpl-badges { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.nx-landing .tpl-badge { font-size:0.68rem; font-weight:600; padding:0.15rem 0.5rem; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#cbd5e1; }
+.nx-landing .tpl-card-use { font-size:0.78rem; font-weight:700; color:var(--primary-glow); margin-top:0.2rem; opacity:0.85; }
+.nx-landing .tpl-foot { margin-top:2.8rem; display:flex; flex-direction:column; align-items:center; gap:0.9rem; }
+.nx-landing .tpl-market { font-size:0.85rem; color:#6b7280; }
+@media (max-width:1024px){ .nx-landing .features-grid{ grid-template-columns:repeat(2,1fr);} .nx-landing .tpl-grid{ grid-template-columns:repeat(2,1fr);} }
+@media (max-width:640px){ .nx-landing header{ padding:1rem 1.5rem;} .nx-landing .hero-title{ font-size:2.2rem;} .nx-landing .sub-heading{ font-size:1.4rem;} .nx-landing .features-grid{ grid-template-columns:1fr;} .nx-landing .tpl-grid{ grid-template-columns:1fr;} .nx-landing .tpl-title{ font-size:1.7rem;} }
 `

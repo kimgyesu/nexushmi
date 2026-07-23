@@ -8,6 +8,7 @@ export const PRESETS = [
   {
     id: 'recoiler',
     name: '리코일러 (직경 기반 속도 제어)',
+    tagline: '감길수록 속도를 자동으로 줄여 일정한 라인 속도를 유지합니다.',
     desc: '감길수록(직경↑) RPM↓. HMI가 목표RPM 계산→PLC setpoint(램프·클램프·워치독). 실제RPM 편차 AI 감시.',
     tags: [
       { key: 'SPEED', desc: '라인 속도', type: 'WORD', unit: 'm/min', role: 'input', min: 0, max: 300 },
@@ -30,6 +31,7 @@ export const PRESETS = [
   {
     id: 'recoiler_torque',
     name: '리코일러 (토크/장력 제어 + 테이퍼) ⭐',
+    tagline: '직경이 커져도 장력을 일정하게 — 얇은 라인도 안 끊기게 토크를 자동 계산합니다.',
     desc: '일정/테이퍼 장력 감기. 감길수록 토크↑(일정장력), 테이퍼로 안쪽 눌림 방지. HMI가 토크SP(Nm) 계산→서보 토크지령. 끊김 전 토크 감시.',
     tags: [
       { key: 'DIA', desc: '코일 직경', type: 'WORD', unit: 'mm', role: 'input', min: 0, max: 2000 },
@@ -58,6 +60,7 @@ export const PRESETS = [
   {
     id: 'uncoiler',
     name: '언코일러 (장력 제어, 로드셀) ⭐',
+    tagline: '로드셀로 실제 장력을 재고 목표대로 자동 제어 — 슬랙·끊김을 막습니다.',
     desc: '로드셀 폐루프 장력 제어. HMI가 장력 지령(N)→PLC PID가 브레이크 토크 제어. 로드셀 실제장력 감시(끊김·슬랙). 테이퍼 옵션.',
     tags: [
       { key: 'DIA', desc: '코일 직경', type: 'WORD', unit: 'mm', role: 'input', min: 0, max: 2000 },
@@ -82,6 +85,7 @@ export const PRESETS = [
   {
     id: 'efficiency',
     name: '효율 (%)',
+    tagline: '입력 대비 출력 효율을 실시간으로 계산합니다.',
     desc: '출력 / 입력 × 100. 두 태그로 효율 계산 태그 생성.',
     tags: [
       { key: 'IN', desc: '입력', type: 'FLOAT', unit: '', role: 'input', min: 0, max: 1000 },

@@ -4,7 +4,6 @@ import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtual
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress, applyType } from '../utils/plcAddress'
 import { driverForDevice, normalizeForDriver, validateForDriver, driverAreas, parseAreaAddr } from '../data/drivers'
-import { PRESETS, applyPreset } from '../data/presets'
 import GroupBuilder from './GroupBuilder'
 import TagEditDialog from './TagEditDialog'
 
@@ -320,7 +319,7 @@ function QuickAddRow({ selectedGroup, devices, onAdd }) {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function TagRegistry({ open, tags, devices = [], projectName, onClose, onOpenDevices, onUpdateTag, onAddTag, onDeleteTag, onReplaceTags, onDuplicateGroup, onCreateGroup }) {
+export default function TagRegistry({ open, tags, devices = [], projectName, onClose, onOpenDevices, onOpenTemplates, focusGroup, onUpdateTag, onAddTag, onDeleteTag, onReplaceTags, onDuplicateGroup, onCreateGroup }) {
   const fileRef = useRef(null)
   // 컬럼 너비(드래그로 조절) — localStorage에 저장
   const [colW, setColW] = useState(() => {
@@ -351,17 +350,9 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
   const [selectedGroup, setSelectedGroup] = useState('__all__')
   const [checkedIdxs, setCheckedIdxs] = useState(new Set())
   const [editIdx, setEditIdx] = useState(null)   // null=닫힘, -1=새 태그, 그 외=tags 절대인덱스
-  const [presetOpen, setPresetOpen] = useState(false)
 
-  function applyPresetTags(preset) {
-    const prefix = window.prompt(`"${preset.name}" — 이 설비 이름(접두어):`, preset.id)
-    if (prefix === null) return
-    const add = applyPreset(preset, prefix.trim() || preset.id).filter(t => !tags.some(x => x.id === t.id))
-    onReplaceTags([...tags, ...add])
-    setPresetOpen(false)
-    if (add[0]?.utility) setSelectedGroup(add[0].utility)
-    window.alert(`"${preset.name}" 프리셋 태그 ${add.length}개 추가됨.\n\n${preset.note || '입력 태그에 PLC 주소를 연결하세요.'}`)
-  }
+  // 템플릿 적용 등으로 특정 그룹을 지정해 열면 그 그룹으로 바로 필터링
+  useEffect(() => { if (open && focusGroup) setSelectedGroup(focusGroup) }, [open, focusGroup])
 
   if (!open) return null
 
@@ -553,25 +544,13 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
                 <Trash2 size={12} /> 선택 삭제 ({checkedIdxs.size})
               </button>
             )}
-            <div className="relative">
-              <button onClick={() => setPresetOpen(o => !o)}
+            {onOpenTemplates && (
+              <button onClick={onOpenTemplates}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#4ade80] hover:bg-[#14532d] transition-colors"
-                style={{ border: '1px solid #22c55e' }} title="검증된 계산/제어 프리셋으로 태그 세트 추가">
-                🧩 프리셋
+                style={{ border: '1px solid #22c55e' }} title="템플릿 갤러리 — 검증된 계산·제어 태그 세트">
+                🧩 템플릿 갤러리
               </button>
-              {presetOpen && (
-                <div className="absolute right-0 mt-1 z-30 w-72 rounded-lg overflow-hidden shadow-2xl"
-                  style={{ background: '#0d1420', border: '1px solid #22c55e' }}>
-                  {PRESETS.map(p => (
-                    <button key={p.id} onClick={() => applyPresetTags(p)}
-                      className="w-full text-left px-3 py-2 hover:bg-[#14532d] transition-colors" style={{ borderBottom: '1px solid #1e2a4a' }}>
-                      <div className="text-[11px] font-bold text-[#4ade80]">{p.name}</div>
-                      <div className="text-[9px] text-[#7c8aa5] leading-snug mt-0.5">{p.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
             <button onClick={() => setEditIdx(-1)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#a78bfa] hover:bg-[#2d1b4e] transition-colors"
               style={{ border: '1px solid #7c3aed' }} title="상세 편집 다이얼로그로 추가">

@@ -13,6 +13,7 @@ import ElementPropertyModal from './components/ElementPropertyModal'
 import EditorAI from './components/EditorAI'
 import TagRegistry from './components/TagRegistry'
 import DeviceRegistry from './components/DeviceRegistry'
+import TemplateGallery from './components/TemplateGallery'
 import { setCustomDrivers as registerCustomDrivers } from './data/drivers'
 import SymbolLibrary from './components/SymbolLibrary'
 import SaveProjectDialog from './components/SaveProjectDialog'
@@ -27,7 +28,7 @@ import { useAccess } from './auth/access'
 import { doSignOut } from './auth/useAuth'
 import {
   Activity, Wifi, Clock, Bell, Settings, LogOut,
-  FilePlus2, Layers, Play, Save, Database, Cpu, Download, FolderOpen, LayoutGrid, Brain,
+  FilePlus2, Layers, Play, Save, Database, Cpu, Download, FolderOpen, LayoutGrid, Brain, Blocks,
 } from 'lucide-react'
 
 // ── 정렬/분배 (여러 요소를 이동) ──
@@ -351,7 +352,7 @@ function TopBar({ tags }) {
   )
 }
 
-function ProjectBar({ projectName, onRename, onOpenFileMenu, onOpenDevices, onOpenRegistry, onRun, onRelayout, elementCount, tagCount, deviceCount, currentFileName, onOpenLearning, learnedCount = 0 }) {
+function ProjectBar({ projectName, onRename, onOpenFileMenu, onOpenDevices, onOpenRegistry, onOpenTemplates, onRun, onRelayout, elementCount, tagCount, deviceCount, currentFileName, onOpenLearning, learnedCount = 0 }) {
   return (
     <div className="flex items-center gap-2 px-3 h-9 bg-[#10151f] border-b border-[#2d3748] flex-shrink-0">
       {/* File 메뉴 버튼 */}
@@ -373,6 +374,10 @@ function ProjectBar({ projectName, onRename, onOpenFileMenu, onOpenDevices, onOp
       </button>
       <button onClick={onOpenRegistry} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[#cbd5e1] hover:bg-[#2d3748] transition-colors">
         <Database size={12} className="text-[#a78bfa]" /> 태그 <span className="text-[#4a5568]">({tagCount})</span>
+      </button>
+      <button onClick={onOpenTemplates} title="검증된 계산·제어 태그 세트 (리코일러·언코일러 등)"
+        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[#cbd5e1] hover:bg-[#2d3748] transition-colors">
+        <Blocks size={12} className="text-[#4ade80]" /> 템플릿
       </button>
       <button onClick={onOpenLearning} title="학습 라이브러리 (패턴 저장 위치·상태)"
         className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[#cbd5e1] hover:bg-[#2d3748] transition-colors">
@@ -462,6 +467,8 @@ export default function App() {
   const clipboardRef = useRef(null)    // 복사된 요소
   const [registryOpen, setRegistryOpen] = useState(false)
   const [deviceRegistryOpen, setDeviceRegistryOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [templateFocusGroup, setTemplateFocusGroup] = useState('')
   // 패널 스타일 (갤러리에서 선택, localStorage 저장) — 새 패널에 자동 적용
   const [panelStyleKey, setPanelStyleKey] = useState(loadActiveStyleKey())
   const panelStyleRef = useRef(panelStyleKey); panelStyleRef.current = panelStyleKey
@@ -1018,6 +1025,13 @@ export default function App() {
       return additions.length ? [...prev, ...additions] : prev
     })
   }, [])
+
+  // 템플릿 적용 → 태그 반영 + 그 그룹으로 태그창 열기 (아무데나 섞이지 않게 그룹 필터)
+  const applyTemplateTags = useCallback((newTags, focusGroup) => {
+    replaceTags(newTags)
+    setTemplateFocusGroup(focusGroup || '')
+    setRegistryOpen(true)
+  }, [replaceTags])
 
   // ── 디바이스 ──
   const updateDevice = useCallback((index, patch) => {
@@ -1587,6 +1601,7 @@ export default function App() {
         onOpenFileMenu={() => setFileMenuOpen(true)}
         onOpenDevices={() => setDeviceRegistryOpen(true)}
         onOpenRegistry={() => setRegistryOpen(true)}
+        onOpenTemplates={() => setTemplatesOpen(true)}
         onRun={runProject}
         elementCount={elements.length}
         tagCount={tags.length}
@@ -1700,14 +1715,23 @@ export default function App() {
         tags={tags}
         devices={devices}
         projectName={projectName}
-        onClose={() => setRegistryOpen(false)}
+        onClose={() => { setRegistryOpen(false); setTemplateFocusGroup('') }}
         onOpenDevices={() => setDeviceRegistryOpen(true)}
+        onOpenTemplates={() => { setRegistryOpen(false); setTemplatesOpen(true) }}
+        focusGroup={templateFocusGroup}
         onUpdateTag={updateTag}
         onAddTag={addTag}
         onDeleteTag={deleteTag}
         onReplaceTags={replaceTags}
         onDuplicateGroup={duplicateGroup}
         onCreateGroup={createGroup}
+      />
+
+      <TemplateGallery
+        open={templatesOpen}
+        tags={tags}
+        onApplyTags={applyTemplateTags}
+        onClose={() => setTemplatesOpen(false)}
       />
 
       <DeviceRegistry
