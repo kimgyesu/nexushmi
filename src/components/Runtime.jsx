@@ -45,7 +45,7 @@ export default function Runtime() {
   const plcDriver = plcDev ? driverForDevice(plcDev) : null
   // 태그 주소를 드라이버 형식으로 정규화 (Modbus는 그대로 M100/D100, XGT/LS는 %DW100/%MX 로)
   const plcItems = useRef(plcDev
-    ? (project.tags || []).filter(t => t.device === plcDev.name && t.address && !isVirtualDevice(t.device) && !t.formula)
+    ? (project.tags || []).filter(t => t.device === plcDev.name && t.address && !isVirtualDevice(t.device) && !t.formula && !t.writeTo)
         .map(t => ({ id: t.id, device: normalizeForDriver(plcDriver, t.address, t.type), type: t.type }))
     : []).current
   // 계산 태그(수식) — 시뮬/폴링 대상에서 제외 (수식으로 계산됨)
@@ -72,6 +72,35 @@ export default function Runtime() {
         return changed ? next : prev
       })
     }, 300)
+    return () => clearInterval(id)
+  }, [])
+
+  // ── setpoint 출력: HMI 계산값 → 레이트제한(램프) → 클램프 → PLC 쓰기 + 하트비트(워치독) ──
+  const outTags = useRef((project.tags || []).filter(t => t.writeTo)).current
+  useEffect(() => {
+    if (!outTags.length) return
+    const DT = 0.2                         // 200ms
+    const lastOut = {}                     // tagId → 마지막 출력값 (램프 기준)
+    let hb = 0
+    const hbAddrs = [...new Set(outTags.map(t => t.writeHeartbeat).filter(Boolean))]
+    const id = setInterval(() => {
+      const byId = {}; for (const t of tagsRef.current) byId[t.id] = Number(t.value) || 0
+      for (const t of outTags) {
+        const target = byId[t.id] || 0
+        const rate = Number(t.writeRate) || 0
+        const min = Number.isFinite(+t.writeMin) ? +t.writeMin : -Infinity
+        const max = Number.isFinite(+t.writeMax) ? +t.writeMax : Infinity
+        const prev = lastOut[t.id] != null ? lastOut[t.id] : target
+        let out = target
+        if (rate > 0) { const step = rate * DT; out = Math.max(prev - step, Math.min(prev + step, target)) }  // 램프
+        out = Math.max(min, Math.min(max, out))                                                                // 클램프
+        lastOut[t.id] = out
+        plcWrite(t.writeTo, out, t.type).catch(() => { /* 미연결 등 */ })
+      }
+      // 워치독 하트비트 (증가 카운터) — PLC가 이게 멈추면 HMI 다운으로 판단해 안전조치
+      hb = (hb + 1) & 0xFFFF
+      for (const a of hbAddrs) plcWrite(a, hb, 'WORD').catch(() => {})
+    }, 200)
     return () => clearInterval(id)
   }, [])
 

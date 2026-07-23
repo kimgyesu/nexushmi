@@ -123,6 +123,12 @@ export function makeTag(p = {}) {
     ...(p.formula ? { formula: String(p.formula) } : {}),   // 계산 태그: 다른 태그값으로 수식 계산
     ...(p.watchActual ? { watchActual: String(p.watchActual) } : {}),   // 예상↔실제 감시: 실제 측정 태그 id
     ...(p.watchTol != null && p.watchTol !== '' ? { watchTol: Number(p.watchTol) } : {}),   // 허용 편차 %
+    // setpoint 출력 (HMI 계산값 → PLC): 레이트제한·클램프·하트비트(워치독)
+    ...(p.writeTo ? { writeTo: String(p.writeTo) } : {}),               // 출력 PLC 주소
+    ...(p.writeMin != null && p.writeMin !== '' ? { writeMin: Number(p.writeMin) } : {}),   // 클램프 하한
+    ...(p.writeMax != null && p.writeMax !== '' ? { writeMax: Number(p.writeMax) } : {}),   // 클램프 상한
+    ...(p.writeRate != null && p.writeRate !== '' ? { writeRate: Number(p.writeRate) } : {}), // 최대 변화율(단위/초)
+    ...(p.writeHeartbeat ? { writeHeartbeat: String(p.writeHeartbeat) } : {}),   // 워치독 하트비트 주소
   }
 }
 

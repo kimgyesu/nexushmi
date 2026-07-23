@@ -39,6 +39,11 @@ const fromTag = t => ({
   formula: t?.formula || '',
   watchActual: t?.watchActual || '',
   watchTol: t?.watchTol ?? 5,
+  writeTo: t?.writeTo || '',
+  writeMin: t?.writeMin ?? '',
+  writeMax: t?.writeMax ?? '',
+  writeRate: t?.writeRate ?? '',
+  writeHeartbeat: t?.writeHeartbeat || '',
 })
 
 // ── I/O 어드레스 필드 (실 디바이스: 영역 드롭다운 재사용) ─────────────────────
@@ -123,6 +128,9 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
       formula: form.formula.trim(),
       watchActual: form.formula.trim() ? form.watchActual : '',
       watchTol: num(form.watchTol, 5),
+      writeTo: form.writeTo.trim(),
+      writeMin: form.writeMin, writeMax: form.writeMax, writeRate: form.writeRate,
+      writeHeartbeat: form.writeHeartbeat.trim(),
     }
   }
   function submit() {
@@ -306,6 +314,38 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
                     )}
                   </div>
                 )}
+
+                {/* PLC 출력 (setpoint 제어) — 이 태그값을 PLC에 씀 (램프·클램프·워치독) */}
+                <div className="p-2.5 rounded" style={{ background: '#0a1a0f', border: '1px solid #166534' }}>
+                  <label className={lbl}>⚙ PLC 출력 (setpoint 제어) <span className="text-[#4a5568] font-normal">(이 태그값을 PLC에 씀 — 램프·클램프·워치독)</span></label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">출력 주소 (PLC) — 비우면 출력 안 함</span>
+                      <input className={inp + ' font-mono'} value={form.writeTo} onChange={e => set('writeTo', e.target.value)} placeholder="예: D500 · %DW500" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">최대 변화율 (단위/초, 0=무제한)</span>
+                      <input type="number" className={inp} value={form.writeRate} onChange={e => set('writeRate', e.target.value)} placeholder="램프" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">하한 (클램프)</span>
+                      <input type="number" className={inp} value={form.writeMin} onChange={e => set('writeMin', e.target.value)} />
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">상한 (클램프)</span>
+                      <input type="number" className={inp} value={form.writeMax} onChange={e => set('writeMax', e.target.value)} />
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">워치독 하트비트 주소 (선택 — PLC가 멈춤 감지 시 안전조치)</span>
+                      <input className={inp + ' font-mono'} value={form.writeHeartbeat} onChange={e => set('writeHeartbeat', e.target.value)} placeholder="예: D510" />
+                    </div>
+                  </div>
+                  {form.writeTo.trim() && (
+                    <div className="mt-1.5 text-[9px] text-[#4ade80] leading-relaxed">
+                      ✓ 런타임 200ms마다: 이 태그값 → 램프(변화율제한) → 클램프[{form.writeMin || '-∞'}~{form.writeMax || '∞'}] → <span className="font-mono">{form.writeTo}</span> 쓰기{form.writeHeartbeat ? ` + 하트비트 ${form.writeHeartbeat}` : ''}
+                    </div>
+                  )}
+                </div>
                 <div>
                   <label className={lbl}>태그 ID <span className="text-[#4a5568] font-normal">(비우면 자동생성 · 변경 시 화면 바인딩 끊길 수 있음)</span></label>
                   <input className={inp + ' font-mono'} value={form.id} onChange={e => set('id', e.target.value)} placeholder={autoId(form.utility, form.desc)} />
