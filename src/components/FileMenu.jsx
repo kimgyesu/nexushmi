@@ -136,6 +136,7 @@ export default function FileMenu({
   onSaveAs,         // 다른 이름으로 저장 다이얼로그
   onLoadDemo,
   onLoadGreenhouse,
+  onLoadCoilLine,
 }) {
   const [activeMenu, setActiveMenu] = useState('recent')
   const [recents, setRecents] = useState(getRecentFiles())
@@ -297,6 +298,12 @@ powershell -ExecutionPolicy Bypass -File "%~dp0NexusHMI-파일형식등록.ps1"
       icon: FileSymlink,
       label: '데모: 스마트팩토리',
       action: () => { onLoadDemo(); onClose() },
+    },
+    {
+      id: 'demo-coil',
+      icon: FileSymlink,
+      label: '데모: 권취/권출 라인',
+      action: () => { onLoadCoilLine?.(); onClose() },
     },
     {
       id: 'demo-gh',

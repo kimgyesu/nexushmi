@@ -23,6 +23,7 @@ import LearningSettings from './components/LearningSettings'
 import RecipeEditor from './components/RecipeEditor'
 import { makeFactoryDemo } from './data/demoFactory'
 import { makeGreenhouseDemo } from './data/demoGreenhouse'
+import { makeCoilLineDemo } from './data/demoCoilLine'
 import { resolvePanelStyle, loadActiveStyleKey, saveActiveStyleKey } from './data/panelStyles'
 import FileMenu, { addRecentFile } from './components/FileMenu'
 import { useAccess } from './auth/access'
@@ -1534,6 +1535,16 @@ export default function App() {
     nextIdRef.current = maxIdNumAll([demoScr]) + 1
   }, [])
 
+  const loadCoilLineDemo = useCallback(() => {
+    if (!window.confirm('현재 작업을 권취/권출 라인 데모로 교체할까요?')) return
+    const demo = makeCoilLineDemo()
+    const demoScr = makeScreen({ id: 'scr_coil', name: '1-권취권출라인', type: 'base', elements: demo.elements, bgColor: demo.bgColor })
+    setProjectName(demo.name); setDevices(DEFAULT_DEVICES); setTags(demo.tags)
+    setScreens([demoScr]); setActiveScreenId(demoScr.id); setSelectedId(null)
+    setRecipeSets([])
+    nextIdRef.current = maxIdNumAll([demoScr]) + 1
+  }, [])
+
   const loadGreenhouseDemo = useCallback(() => {
     if (!window.confirm('현재 작업을 스마트 온실 데모로 교체할까요? (배경 이미지: public/greenhouse.jpg)')) return
     const demo = makeGreenhouseDemo()
@@ -1783,6 +1794,7 @@ export default function App() {
           onSaveAs={() => { fileHandleRef.current = null; setSaveDialogOpen(true) }}
           onLoadDemo={loadDemo}
           onLoadGreenhouse={loadGreenhouseDemo}
+          onLoadCoilLine={loadCoilLineDemo}
         />
       )}
 
