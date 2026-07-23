@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Cpu, Plus, Trash2, X, Plug, Loader2, FileText } from 'lucide-react'
 import { DEVICE_COLUMNS, DEVICE_PROTOCOLS, BAUD_RATES, PARITIES, isSerial, makeDevice } from '../data/devices'
 import { vendorsList, driversByVendor, getDriver, driverForDevice, isCustomDriver } from '../data/drivers'
-import { plcConnect } from '../utils/api'
+import { plcConnect, plcStatus, plcDisconnect } from '../utils/api'
 import DriverEditor from './DriverEditor'
 
 function Cell({ device, col, index, onChange }) {
@@ -71,16 +71,45 @@ function ConnectBtn({ device }) {
   const [state, setState] = useState('idle') // idle | busy | ok | err
   const [msg, setMsg] = useState('')
 
-  const serialDev = driverForDevice(device).conn === 'serial'
+  const driver = driverForDevice(device)
+  const serialDev = driver.conn === 'serial'
+  // 드라이버 프로토콜로 통신 방식 결정 (Modbus면 modbus, 그 외 LS는 xgt)
+  const protocol = /modbus/i.test(driver.protocol || '') ? 'modbus' : 'xgt'
+
+  // 서버의 실제 연결상태를 주기적으로 반영 (창 닫았다 열어도, 마운트 타이밍 무관하게 유지)
+  const norm = v => String(v || '').toUpperCase().trim()
+  useEffect(() => {
+    if (!serialDev) return
+    let alive = true
+    const check = () => plcStatus().then(s => {
+      if (!alive) return
+      // 서버가 연결돼 있고, 포트가 일치(또는 디바이스 포트가 비어있어 기본값으로 연결된 경우)
+      const here = !!s?.connected && (!norm(device.port) || norm(s?.config?.path) === norm(device.port))
+      setState(prev => (prev === 'busy' ? prev : (here ? 'ok' : (prev === 'err' ? 'err' : 'idle'))))
+      if (here) setMsg('연결됨')
+    }).catch(() => { /* 서버 미실행 */ })
+    check()
+    const id = setInterval(check, 3000)
+    return () => { alive = false; clearInterval(id) }
+  }, [device.port, serialDev])
+
   async function test() {
     if (!serialDev) return
+    if (state === 'ok') {   // 이미 연결됨 → 클릭 시 해제
+      setState('busy')
+      try { await plcDisconnect(); setState('idle'); setMsg('') }
+      catch (e) { setState('ok'); setMsg(e.message) }
+      return
+    }
     setState('busy'); setMsg('')
     try {
       await plcConnect({
+        protocol,
         port: device.port, baud: device.baud, station: device.station,
         dataBits: device.dataBits, parity: device.parity, stopBits: device.stopBits,
+        lsMap: driver?.addr?.lsModbus || null,   // LS Modbus 매핑(M/D 자동변환)
       })
-      setState('ok'); setMsg('연결됨')
+      setState('ok'); setMsg(`연결됨 (${protocol})`)
     } catch (e) {
       setState('err'); setMsg(e.message)
     }
@@ -88,7 +117,7 @@ function ConnectBtn({ device }) {
 
   if (!serialDev) return <span className="text-[9px] text-[#4a5568]">—</span>
   return (
-    <button onClick={test} title={msg || '이 설정으로 PLC 연결 테스트'}
+    <button onClick={test} title={state === 'ok' ? '연결됨 — 클릭하면 해제' : (msg || '이 설정으로 PLC 연결 테스트')}
       className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-colors"
       style={state === 'ok' ? { background: '#14532d', color: '#22c55e', border: '1px solid #166534' }
         : state === 'err' ? { background: '#450a0a', color: '#ef4444', border: '1px solid #7f1d1d' }

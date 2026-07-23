@@ -26,6 +26,10 @@ server/*.db
 # Firebase 캐시
 .firebase/
 
+# 학습 라이브러리 vault (런타임 생성 로컬 데이터)
+_test_vault/
+learning-vault/
+
 # OS / 에디터
 .DS_Store
 Thumbs.db

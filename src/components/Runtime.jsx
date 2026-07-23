@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { useValueSimulator } from '../hooks/useTagSimulator'
 import { useHistorian } from '../hooks/useHistorian'
-import { isSetpointTag } from '../data/tags'
+import { isSetpointTag, isVirtualDevice } from '../data/tags'
 import { loadGlobalSymbols } from '../data/symbols'
-import { postEvents } from '../utils/api'
+import { driverForDevice } from '../data/drivers'
+import { postEvents, plcConnect, plcRead, plcWrite } from '../utils/api'
 import { createLogger } from '../utils/dataLogger'
 import { loadProject } from '../data/project'
 import { RENDERERS, resolveTag, tagAlarmLevel, elementBBox } from './ScadaCanvas'
 import RuntimeAI from './RuntimeAI'
 import ChartViewer from './ChartViewer'
-import { MonitorPlay, Wifi, Clock, Bell, X, Database, LineChart, Lock } from 'lucide-react'
+import { MonitorPlay, Wifi, Clock, Bell, X, Database, LineChart, Lock, Cpu } from 'lucide-react'
 import { useAccess } from '../auth/access'
 
 /* 실행(런타임) 화면 — 운전자 모니터링 뷰
@@ -37,7 +38,57 @@ export default function Runtime() {
 
   // 런타임도 자체 태그 상태를 소유하고 값을 시뮬레이션
   const [tags, setTags] = useState(project.tags ?? [])
-  useValueSimulator(setTags)
+
+  // ── 실 PLC 대상 태그 파악 (시리얼 디바이스 + 주소 있는 실태그) ──
+  const plcDev = (project.devices || []).find(d => driverForDevice(d).conn === 'serial')
+  const plcItems = useRef(plcDev
+    ? (project.tags || []).filter(t => t.device === plcDev.name && t.address && !isVirtualDevice(t.device))
+        .map(t => ({ id: t.id, device: t.address, type: t.type }))
+    : []).current
+  const plcSkipIds = useRef(new Set(plcItems.map(i => i.id))).current
+  const [plcOn, setPlcOn] = useState(false)
+
+  // 실 PLC 폴링 태그는 시뮬 제외 (실제 값으로 갱신)
+  useValueSimulator(setTags, false, 2500, plcSkipIds)
+
+  // ── 실 PLC 실시간 폴링 (RUN 시 자동 연결 → 1초마다 읽어 태그 갱신) ──
+  useEffect(() => {
+    if (!plcDev || !plcItems.length) return
+    const driver = driverForDevice(plcDev)
+    const protocol = /modbus/i.test(driver.protocol || '') ? 'modbus' : 'xgt'
+    // LS 매핑: 드라이버 설정 우선, 없으면 M/D 주소를 쓰는 Modbus면 기본 LS 매핑 자동 적용
+    const usesLsAddr = plcItems.some(i => /^[md]\d+$/i.test(String(i.device)))
+    const lsMap = driver?.addr?.lsModbus
+      || (protocol === 'modbus' && usesLsAddr ? { bitReadStart: 100, bitWriteStart: 500, wordReadStart: 100, wordWriteStart: 500 } : null)
+    let alive = true, timer = null
+    ;(async () => {
+      try {
+        await plcConnect({
+          protocol, port: plcDev.port, baud: plcDev.baud, station: plcDev.station,
+          dataBits: plcDev.dataBits, parity: plcDev.parity, stopBits: plcDev.stopBits,
+          lsMap,
+        })
+        if (!alive) return
+        setPlcOn(true)
+      } catch (e) { console.warn('[PLC] 연결 실패:', e.message); return }
+      const poll = async () => {
+        if (!alive) return
+        try {
+          const r = await plcRead(plcItems.map(i => ({ device: i.device, type: i.type })))
+          const vals = r?.values || {}
+          setTags(prev => prev.map(t => {
+            const it = plcItems.find(i => i.id === t.id)
+            if (!it) return t
+            const v = vals[it.device]
+            return v == null ? t : { ...t, value: Number(v) }
+          }))
+        } catch { /* 한 박자 건너뜀 */ }
+        if (alive) timer = setTimeout(poll, 200)   // 읽기 완료 후 200ms 뒤 재폴링 (체감 지연 최소화)
+      }
+      poll()
+    })()
+    return () => { alive = false; if (timer) clearTimeout(timer) }
+  }, [])
 
   // 데이터 로거 — 실행 중 태그 이력 기록 (범용 보고서의 실데이터 근거)
   const loggerRef = useRef(createLogger())
@@ -158,8 +209,15 @@ export default function Runtime() {
   const [sp, setSp] = useState(null)         // { tagId, name, unit, min, max }
   const [spInput, setSpInput] = useState('')
 
+  // 실 PLC 태그면 값을 PLC에도 씀 (쓰기 영역: M500·D500…). 로컬 태그값은 별도로 갱신됨.
+  function plcWriteIfReal(tagId, value) {
+    const it = plcItems.find(i => i.id === tagId)
+    if (it) plcWrite(it.device, value, it.type).catch(e => console.warn('[PLC] 쓰기 실패:', it.device, e.message))
+  }
+
   function setBit(tagId, v) {
     setTags(prev => prev.map(t => t.id === tagId ? { ...t, value: v } : t))
+    plcWriteIfReal(tagId, v)
   }
 
   // BIT 비트 조작 (behavior별) — wId: 쓰기 태그
@@ -237,6 +295,7 @@ export default function Runtime() {
     const dec = sp.decimals ?? 0
     const rawV = dec > 0 ? Math.round(displayV * Math.pow(10, dec)) : displayV
     setTags(prev => prev.map(t => t.id === sp.tagId ? { ...t, value: rawV } : t))
+    plcWriteIfReal(sp.tagId, rawV)
     postEvents({ type: 'setpoint', tagId: sp.tagId, value: rawV, message: `${sp.name} 설정값 변경 → ${displayV}${sp.unit || ''}` })
     setSp(null)
   }
@@ -280,6 +339,17 @@ export default function Runtime() {
         <span className="text-[11px] text-[#e2e8f0] font-mono font-bold">{project.name}</span>
 
         <div className="flex items-center gap-3 ml-auto">
+          {/* 실 PLC 연결 상태 (실 디바이스 태그가 있을 때만) */}
+          {plcItems.length > 0 && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded"
+              style={plcOn ? { background: '#0f2018', border: '1px solid #166534' } : { background: '#2a1a0a', border: '1px solid #78350f' }}
+              title={plcOn ? `실 PLC 연결됨 · ${plcItems.length}개 태그 폴링 중` : 'PLC 연결 시도 중… (로컬 서버 실행 필요)'}>
+              <Cpu size={10} className={plcOn ? 'text-[#22c55e]' : 'text-[#f59e0b]'} />
+              <span className={`text-[10px] font-mono ${plcOn ? 'text-[#22c55e]' : 'text-[#f59e0b]'}`}>
+                {plcOn ? `PLC ${plcItems.length}` : 'PLC…'}
+              </span>
+            </div>
+          )}
           {/* 이력 저장 상태 */}
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded"
             style={hist.connected
@@ -366,7 +436,7 @@ export default function Runtime() {
                     symbols={symbols}
                     svgBindings={project.svgBindings || {}}
                     runtime={true}
-                    onWriteTag={(tagId, value) => setTags(prev => prev.map(t => t.id === tagId ? { ...t, value } : t))}
+                    onWriteTag={(tagId, value) => { setTags(prev => prev.map(t => t.id === tagId ? { ...t, value } : t)); plcWriteIfReal(tagId, value) }}
                     onPointerDown={() => handleElementPointer(el)}
                   />
                   </g>

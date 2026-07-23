@@ -3,15 +3,19 @@ import { nextValue, VIRTUAL_DEVICE } from '../data/tags'
 
 // 값 시뮬레이터: 외부(App/Runtime)가 소유한 tags 상태의 "값"만 주기적으로 흔든다.
 // 가상 태그는 디바이스 폴링 없이 내부 값 유지 — 자동 시뮬레이션 대상 제외.
-export function useValueSimulator(setTags, paused = false, intervalMs = 2500) {
+export function useValueSimulator(setTags, paused = false, intervalMs = 2500, skipIds = null) {
   const [updatedIds, setUpdatedIds] = useState(() => new Set())
+  const skipRef = useRef(skipIds); skipRef.current = skipIds
 
   useEffect(() => {
     if (paused) return
     const timer = setInterval(() => {
       setTags(prev => {
         const changed = new Set()
+        const skip = skipRef.current
         const next = prev.map(tag => {
+          // 실 PLC 폴링 태그는 시뮬 제외 (실제 값으로 갱신됨)
+          if (skip && skip.has(tag.id)) return tag
           // 가상 태그는 자동 변동 없이 현재 값 유지 (HMI 입력/직접 쓰기로만 변경)
           if (tag.device === VIRTUAL_DEVICE) return tag
           const v = nextValue(tag)

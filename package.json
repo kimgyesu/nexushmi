@@ -16,6 +16,7 @@
     "express": "^5.2.1",
     "firebase": "^12.16.0",
     "lucide-react": "^1.21.0",
+    "modbus-serial": "^8.0.25",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "serialport": "^13.0.0",

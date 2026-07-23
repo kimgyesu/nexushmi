@@ -4,6 +4,7 @@ import cors from 'cors'
 import Database from 'better-sqlite3'
 import Anthropic from '@anthropic-ai/sdk'
 import { plc } from './protocols/plcManager.js'
+import { modbus } from './protocols/modbusManager.js'
 import { SerialTransport } from './protocols/serialTransport.js'
 import { makeLearning } from './learning.js'
 import fs from 'node:fs'
@@ -283,38 +284,55 @@ app.post('/api/claude', async (req, res) => {
   }
 })
 
-// ── LS XGB Cnet PLC ──
+// ── PLC 통신 (LS XGT Cnet 전용 / Modbus RTU) ──
+//   protocol: 'xgt'(기본, LS 전용) | 'modbus'(LS Cnet Modbus 슬레이브 등)
+const MANAGERS = { xgt: plc, modbus }
+let active = plc   // 현재 활성 매니저
+
+// 시리얼 포트 목록 (칩셋 자동 식별)
 app.get('/api/plc/ports', async (req, res) => {
   try { res.json({ ok: true, ports: await SerialTransport.listPorts() }) }
   catch (e) { res.status(500).json({ ok: false, error: e.message }) }
 })
 
-app.get('/api/plc/status', (req, res) => res.json({ ok: true, ...plc.status() }))
+app.get('/api/plc/status', (req, res) => res.json({ ok: true, ...active.status() }))
 
 app.post('/api/plc/connect', async (req, res) => {
-  try { await plc.connect(req.body || {}); res.json({ ok: true, ...plc.status() }) }
-  catch (e) { res.status(500).json({ ok: false, error: e.message, ...plc.status() }) }
+  try {
+    const protocol = req.body?.protocol === 'modbus' ? 'modbus' : 'xgt'
+    // 다른 매니저는 끊고 활성 전환
+    for (const k of Object.keys(MANAGERS)) if (MANAGERS[k] !== MANAGERS[protocol]) { try { await MANAGERS[k].disconnect() } catch { /* ignore */ } }
+    active = MANAGERS[protocol]
+    await active.connect(req.body || {})
+    res.json({ ok: true, protocol, ...active.status() })
+  } catch (e) { res.status(500).json({ ok: false, error: e.message, ...active.status() }) }
 })
 
 app.post('/api/plc/disconnect', async (req, res) => {
-  await plc.disconnect(); res.json({ ok: true, ...plc.status() })
+  await active.disconnect(); res.json({ ok: true, ...active.status() })
+})
+
+// Modbus 자동 스캔 — body: { path, bauds?, stationFrom?, stationTo?, testAddr?, parity? }
+app.post('/api/plc/scan', async (req, res) => {
+  try { res.json({ ok: true, ...(await modbus.scan(req.body || {})) }) }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }) }
 })
 
 // 폴링 대상 등록 (태그 주소 목록)
 app.post('/api/plc/poll', (req, res) => {
-  plc.setPollDevices(req.body?.devices || [])
-  res.json({ ok: true, pollDevices: plc.pollDevices })
+  active.setPollDevices(req.body?.devices || [])
+  res.json({ ok: true, pollDevices: active.pollDevices })
 })
 
 // 즉시 읽기
 app.post('/api/plc/read', async (req, res) => {
-  try { res.json({ ok: true, values: await plc.read(req.body?.devices || []) }) }
+  try { res.json({ ok: true, values: await active.read(req.body?.devices || []) }) }
   catch (e) { res.status(500).json({ ok: false, error: e.message }) }
 })
 
 // 쓰기 (스위치/설정값) — body: { device, value, type }
 app.post('/api/plc/write', async (req, res) => {
-  try { await plc.write(req.body.device, req.body.value, req.body.type || 'WORD'); res.json({ ok: true }) }
+  try { await active.write(req.body.device, req.body.value, req.body.type || 'WORD'); res.json({ ok: true }) }
   catch (e) { res.status(500).json({ ok: false, error: e.message }) }
 })
 

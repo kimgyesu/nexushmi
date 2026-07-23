@@ -36,21 +36,13 @@ export const DRIVERS = [
     addr: { transform: 'ls', bit: 'X', word: 'W', dword: 'D', areas: ['M', 'D', 'P', 'K', 'F', 'T', 'C', 'L', 'N', 'R', 'U', 'Z'], example: 'M0 → %MX0 · D100 → %DW100', hint: '영역+번호 (M0, D100)', validate: '^%[A-Z]+[XBWDL][0-9.]+$' },
     defaults: { baud: 115200, parity: 'none', station: 1 } },
 
-  { id: 'siemens-s7', vendor: 'Siemens', name: 'Siemens S7 (S7-1200/1500/200 Smart)', protocol: 'S7comm', conn: 'ethernet',
-    addr: { transform: 'upper', example: 'M0.0 · MW10 · DB1.DBW0', hint: '지멘스 (M0.0, MW10, DBx.DBWy)', validate: '^(%?[IQM]\\d+(\\.\\d+)?|%?[IQM][BWD]\\d+|DB\\d+\\.DB[XBWD]\\d+(\\.\\d+)?)$' },
-    defaults: { station: 0 } },
-
-  { id: 'omron-fins', vendor: 'Omron', name: 'Omron FINS (CJ/CP/NX)', protocol: 'FINS', conn: 'ethernet',
-    addr: { transform: 'upper', example: 'CIO0.00 · D100 · W0.00', hint: '옴론 (CIO, D, W)', validate: '^(CIO|D|W|H|A|E)\\d+(\\.\\d+)?$' },
-    defaults: {} },
-
-  { id: 'mitsubishi-mc', vendor: 'Mitsubishi', name: 'Mitsubishi MC (FX/Q/L)', protocol: 'MC Protocol', conn: 'ethernet',
-    addr: { transform: 'upper', example: 'M0 · D100 · X0 · Y10', hint: '미쓰비시 (M, D, X, Y)', validate: '^[XYMDLTCRSBWZ]\\d+$' },
-    defaults: {} },
-
-  { id: 'modbus-tcp', vendor: 'Modbus', name: 'Modbus TCP (범용)', protocol: 'Modbus TCP', conn: 'ethernet',
-    addr: { transform: 'raw', example: '40001(홀딩) · 00001(코일)', hint: 'Modbus 레지스터 번호', validate: '^[0-4]?[0-9]{1,5}$' },
-    defaults: { station: 1 } },
+  { id: 'ls-modbus', vendor: 'LS산전', name: 'LS XGB Modbus (Cnet 슬레이브)', protocol: 'Modbus RTU', conn: 'serial',
+    addr: { transform: 'upper',
+      // LS Cnet Modbus 슬레이브 매핑 시작주소 (XG5000 설정과 일치) — 브리지가 자동 변환
+      lsModbus: { bitReadStart: 100, bitWriteStart: 500, wordReadStart: 100, wordWriteStart: 500 },
+      example: 'M100·D100(읽기) · M500·D500(쓰기)', hint: 'M/D+번호 (M100·D100=읽기, M500·D500=쓰기)',
+      validate: '^[MD]\\d+$' },
+    defaults: { baud: 9600, parity: 'none', station: 1 } },
 
   { id: 'modbus-rtu', vendor: 'Modbus', name: 'Modbus RTU (범용)', protocol: 'Modbus RTU', conn: 'serial',
     addr: { transform: 'raw', example: '40001 · 00001', hint: 'Modbus 레지스터 번호', validate: '^[0-4]?[0-9]{1,5}$' },

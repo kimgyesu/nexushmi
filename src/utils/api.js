@@ -134,9 +134,9 @@ export async function plcRead(devices) {
   return d
 }
 
-export async function plcWrite(device, value) {
+export async function plcWrite(device, value, type = 'WORD') {
   const r = await fetch('/api/plc/write', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device, value }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device, value, type }),
   })
   const d = await r.json().catch(() => ({ ok: false, error: '응답 오류' }))
   if (!r.ok || !d.ok) throw new Error(d.error || `서버 오류 ${r.status}`)

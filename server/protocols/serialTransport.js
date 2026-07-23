@@ -10,8 +10,21 @@ export class SerialTransport {
   }
 
   static async listPorts() {
+    const CHIP = { '0403': 'FTDI', '1a86': 'CH340', '10c4': 'CP210x', '067b': 'Prolific' }
     const ports = await SerialPort.list()
-    return ports.map(p => ({ path: p.path, manufacturer: p.manufacturer || '', serialNumber: p.serialNumber || '' }))
+    return ports.map(p => {
+      const vid = (p.vendorId || '').toLowerCase()
+      const chip = CHIP[vid] || ''
+      return {
+        path: p.path,
+        manufacturer: p.manufacturer || '',
+        serialNumber: p.serialNumber || '',
+        vendorId: p.vendorId || '', productId: p.productId || '',
+        friendlyName: p.friendlyName || p.pnpId || '',
+        chip,                              // FTDI/CH340/CP210x/Prolific
+        likelyAdapter: !!chip,             // RS485 어댑터로 추정 → UI 자동선택 힌트
+      }
+    })
   }
 
   isOpen() {

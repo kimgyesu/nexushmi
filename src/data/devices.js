@@ -1,5 +1,6 @@
 // 디바이스(제어기/PLC) 모델 — 통신 설정 포함, 태그는 드롭다운으로 선택
-export const DEVICE_PROTOCOLS = ['시뮬레이션', 'XGT Cnet (LS)', 'Modbus RTU', 'Modbus TCP', 'OPC-UA', 'MQTT', '기타']
+// 실제 구현된 프로토콜만 노출 (미구현 Modbus TCP/OPC-UA/MQTT/기타는 구현 시 추가)
+export const DEVICE_PROTOCOLS = ['시뮬레이션', 'XGT Cnet (LS)', 'Modbus RTU']
 export const BAUD_RATES = [9600, 19200, 38400, 57600, 115200]
 export const PARITIES = [{ id: 'none', label: 'None' }, { id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }]
 
