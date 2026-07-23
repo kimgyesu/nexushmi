@@ -56,6 +56,30 @@ export const PRESETS = [
     note: '직경·실제토크에 PLC주소 연결 · 코어/만감직경·시작장력·테이퍼% 설정 · 목표토크의 출력주소(서보 토크지령)·상한(writeMax=안전토크) 지정. 테이퍼 0=일정장력. 서보="토크모드+속도리밋".',
   },
   {
+    id: 'uncoiler',
+    name: '언코일러 (장력 제어, 로드셀) ⭐',
+    desc: '로드셀 폐루프 장력 제어. HMI가 장력 지령(N)→PLC PID가 브레이크 토크 제어. 로드셀 실제장력 감시(끊김·슬랙). 테이퍼 옵션.',
+    tags: [
+      { key: 'DIA', desc: '코일 직경', type: 'WORD', unit: 'mm', role: 'input', min: 0, max: 2000 },
+      { key: 'DIA_CORE', desc: '코어 직경 (설정)', type: 'WORD', unit: 'mm', role: 'setpoint', min: 0, max: 2000, value: 100 },
+      { key: 'DIA_FULL', desc: '만감 직경 (설정)', type: 'WORD', unit: 'mm', role: 'setpoint', min: 0, max: 2000, value: 600 },
+      { key: 'TENSION_START', desc: '목표 장력 (설정)', type: 'WORD', unit: 'N', role: 'setpoint', min: 0, max: 500, value: 50 },
+      { key: 'TAPER', desc: '테이퍼 (설정, 0=일정)', type: 'WORD', unit: '%', role: 'setpoint', min: 0, max: 100, value: 0 },
+      {
+        key: 'LOADCELL', desc: '실제 장력 (로드셀)', type: 'FLOAT', unit: 'N', role: 'input', min: 0, max: 500, decimals: 1,
+        alarmHigh: 100, alarmLow: 5, alarmHint: '로드셀 장력 이상 — 상한=끊김위험 / 하한=슬랙·슬립. 속도·PID·소재 확인',
+      },
+      {
+        key: 'TENSION_SP', desc: '장력 지령 (계산)', type: 'FLOAT', unit: 'N', role: 'calc', min: 0, max: 500, decimals: 1,
+        // 테이퍼 적용 장력 지령 (테이퍼 0이면 일정). PLC PID의 setpoint로 씀
+        formula: '{TENSION_START} * (1 - {TAPER}/100 * min(1, max(0, ({DIA} - {DIA_CORE}) / max(1, {DIA_FULL} - {DIA_CORE}))))',
+        watchActual: '{LOADCELL}', watchTol: 10,   // 지령 vs 로드셀 실제 → PID 못따라가면 알림
+        writeTo: '', writeRate: 10, writeMin: 0, writeMax: 150, writeHeartbeat: '',   // 출력주소=PLC PID setpoint
+      },
+    ],
+    note: '직경·로드셀에 PLC주소 연결 · 목표장력·테이퍼 설정 · 장력지령의 출력주소(PLC PID setpoint)·상한·하트비트 지정. PID 장력루프는 PLC가 담당. 로드셀 상한/하한 경보값을 라인에 맞게 튜닝.',
+  },
+  {
     id: 'efficiency',
     name: '효율 (%)',
     desc: '출력 / 입력 × 100. 두 태그로 효율 계산 태그 생성.',
