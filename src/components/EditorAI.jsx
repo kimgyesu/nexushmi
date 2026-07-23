@@ -284,6 +284,22 @@ JSON 하나만 출력. 코드펜스 금지.
 사용 가능한 op:
   addTag: {"op":"addTag","id":"TAG_X","desc":"설명","type":"BIT|WORD|FLOAT","unit":"","min":0,"max":100,"device":"PLC_01","utility":"그룹명","address":"D100","decimals":0}
 
+  ⭐ addTag 확장 필드 (계산·감시·제어·경보 — 이걸로 "제어 세트"를 통째로 생성):
+    · formula: "다른 태그로 계산"(계산 태그). 태그ID로 참조. 연산 + - * / % ^ ( ), 함수 abs sqrt round floor ceil min max pow log exp sin cos tan, 조건 A>10?1:0, 상수 PI. 예 "TAG_SPEED / (PI * (TAG_DIA/1000))"
+    · watchActual:"실제측정 태그ID", watchTol:허용편차% → 예상(수식)↔실제 편차 초과 시 런타임AI 자동 알림
+    · writeTo:"PLC 출력주소(setpoint)", writeRate:최대변화율(단위/초, 램프), writeMin/writeMax:클램프, writeHeartbeat:"워치독 주소" → 이 태그값을 PLC에 안전하게 씀
+    · alarmHigh/alarmLow:상한/하한 경보값, alarmHint:"원인·조치문구" → 초과 시 런타임AI 알림(상한 90% 근접=주의)
+    · value:초기값. desc에 "설정" 포함하면 런타임에서 사용자가 입력하는 설정값 태그
+
+  [제어 세트 생성] — "리코일러/언코일러/장력제어/직경기반 속도 만들어줘" 등:
+    ⚠원칙: 복잡 계산은 HMI(수식), 빠른 제어루프·PID는 PLC. HMI는 setpoint 주고 감시만.
+    · 입력(측정) 태그: device=실PLC, 주소는 사용자가 연결→address:"" 로 비워둠
+    · 계산 태그: formula로 목표값 계산, 필요시 writeTo로 PLC 출력(램프·클램프)
+    · 감시: 계산태그에 watchActual+watchTol(예상↔실제), 측정태그에 alarmHigh/Low(끊김·슬랙)
+    · 여러 addTag를 한 번에 내서 세트 구성. 태그ID는 일관되게(TAG_{설비}_{항목}).
+    예) 리코일러 토크제어(로드셀無=개루프): 토크(Nm)=장력×직경/2000, 감길수록 직경↑→토크↑. 태그=직경(입력)·시작장력/테이퍼/코어·만감직경(설정)·실제토크(입력,alarmHigh)·목표토크(계산formula, writeTo=서보토크지령, watchActual=실제토크). 테이퍼 수식=시작장력*(1-테이퍼/100*min(1,max(0,(직경-코어)/max(1,만감-코어))))
+    예) 언코일러 장력제어(로드셀有=폐루프, PID는 PLC): HMI는 장력 setpoint만. 태그=직경(입력)·목표장력/테이퍼(설정)·로드셀(입력,alarmHigh=끊김/alarmLow=슬랙)·장력지령(계산, writeTo=PLC PID setpoint, watchActual=로드셀)
+
 [태그 추가 규칙]
   사용자가 태그 추가를 요청할 때 파악할 항목:
   - 그룹(utility): 언급 없으면 "" (전역)
