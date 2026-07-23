@@ -79,6 +79,7 @@ export default function Runtime() {
   const outTags = useRef((project.tags || []).filter(t => t.writeTo)).current
   useEffect(() => {
     if (!outTags.length) return
+    if (access.loading || !access.plc) return   // 실장비 출력은 프리미엄 (무료=시뮬만)
     const DT = 0.2                         // 200ms
     const lastOut = {}                     // tagId → 마지막 출력값 (램프 기준)
     let hb = 0
@@ -102,11 +103,12 @@ export default function Runtime() {
       for (const a of hbAddrs) plcWrite(a, hb, 'WORD').catch(() => {})
     }, 200)
     return () => clearInterval(id)
-  }, [])
+  }, [access.plc, access.loading])
 
   // ── 실 PLC 실시간 폴링 (RUN 시 자동 연결 → 1초마다 읽어 태그 갱신) ──
   useEffect(() => {
     if (!plcDev || !plcItems.length) return
+    if (access.loading || !access.plc) return   // 실장비 연결은 프리미엄 (무료=시뮬만)
     const driver = driverForDevice(plcDev)
     const protocol = /modbus/i.test(driver.protocol || '') ? 'modbus' : 'xgt'
     // LS 매핑: 드라이버 설정 우선, 없으면 M/D 주소를 쓰는 Modbus면 기본 LS 매핑 자동 적용
@@ -141,7 +143,7 @@ export default function Runtime() {
       poll()
     })()
     return () => { alive = false; if (timer) clearTimeout(timer) }
-  }, [])
+  }, [access.plc, access.loading])
 
   // 데이터 로거 — 실행 중 태그 이력 기록 (범용 보고서의 실데이터 근거)
   const loggerRef = useRef(createLogger())
@@ -264,6 +266,7 @@ export default function Runtime() {
 
   // 실 PLC 태그면 값을 PLC에도 씀 (쓰기 영역: M500·D500…). 로컬 태그값은 별도로 갱신됨.
   function plcWriteIfReal(tagId, value) {
+    if (!access.plc) return   // 실장비 쓰기는 프리미엄 (무료=시뮬만)
     const it = plcItems.find(i => i.id === tagId)
     if (it) plcWrite(it.device, value, it.type).catch(e => console.warn('[PLC] 쓰기 실패:', it.device, e.message))
   }
@@ -392,8 +395,15 @@ export default function Runtime() {
         <span className="text-[11px] text-[#e2e8f0] font-mono font-bold">{project.name}</span>
 
         <div className="flex items-center gap-3 ml-auto">
-          {/* 실 PLC 연결 상태 (실 디바이스 태그가 있을 때만) */}
-          {plcItems.length > 0 && (
+          {/* 실 PLC 연결 상태 (실 디바이스 태그가 있을 때만) — 무료 유저는 프리미엄 안내 */}
+          {plcItems.length > 0 && (!access.loading && !access.plc ? (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded"
+              style={{ background: '#2a1a08', border: '1px solid #a16207' }}
+              title="실장비 PLC 연결은 프리미엄 기능입니다. 시뮬레이션은 무료로 실행됩니다.">
+              <Lock size={10} className="text-[#fbbf24]" />
+              <span className="text-[10px] font-mono text-[#fbbf24]">PLC 프리미엄</span>
+            </div>
+          ) : (
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded"
               style={plcOn ? { background: '#0f2018', border: '1px solid #166534' } : { background: '#2a1a0a', border: '1px solid #78350f' }}
               title={plcOn ? `실 PLC 연결됨 · ${plcItems.length}개 태그 폴링 중` : 'PLC 연결 시도 중… (로컬 서버 실행 필요)'}>
@@ -402,7 +412,7 @@ export default function Runtime() {
                 {plcOn ? `PLC ${plcItems.length}` : 'PLC…'}
               </span>
             </div>
-          )}
+          ))}
           {/* 이력 저장 상태 */}
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded"
             style={hist.connected

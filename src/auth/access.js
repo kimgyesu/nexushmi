@@ -12,9 +12,9 @@ export function isOwner(user) {
   return !!user && OWNER_EMAILS.includes(String(user.email || '').toLowerCase())
 }
 
-// 무료 유저 제한
-const FREE_PLAN = { owner: false, maxProjects: 1, ai: false, runtimeMinutes: 10 }
-const OWNER_PLAN = { owner: true, maxProjects: Infinity, ai: true, runtimeMinutes: Infinity }
+// 무료 유저 제한 (plc: 실장비 PLC 연결 — 프리미엄 기능. 편집·시뮬레이션은 무료)
+const FREE_PLAN = { owner: false, maxProjects: 1, ai: false, runtimeMinutes: 10, plc: false }
+const OWNER_PLAN = { owner: true, maxProjects: Infinity, ai: true, runtimeMinutes: Infinity, plc: true }
 
 export function getPlan(user) {
   return isOwner(user) ? OWNER_PLAN : FREE_PLAN

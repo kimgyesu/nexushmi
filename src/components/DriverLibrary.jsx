@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { X, Cpu, Plug, Search, ArrowRight, Sparkles } from 'lucide-react'
+import { X, Cpu, Plug, Search, ArrowRight, Sparkles, Lock } from 'lucide-react'
 import { allDrivers, isCustomDriver } from '../data/drivers'
+import { useAccess } from '../auth/access'
 
 const CONN = {
   serial:   { label: 'RS-232 / 485', color: '#f59e0b' },
@@ -70,7 +71,10 @@ function DriverCard({ d, onUse }) {
 
 export default function DriverLibrary({ open, onClose, onOpenDevices }) {
   const [query, setQuery] = useState('')
+  const access = useAccess()
   if (!open) return null
+
+  const premiumLocked = !access.loading && !access.plc   // 무료 유저: 구경 자유, 실연결 프리미엄
 
   const list = allDrivers()
   const q = query.trim().toLowerCase()
@@ -102,6 +106,16 @@ export default function DriverLibrary({ open, onClose, onOpenDevices }) {
           </div>
           <button onClick={onClose} className="p-1.5 rounded hover:bg-[#374151] text-[#6b7280] hover:text-white transition-colors"><X size={16} /></button>
         </div>
+
+        {/* 무료 유저 안내 — 구경은 자유, 실장비 연결은 프리미엄 */}
+        {premiumLocked && (
+          <div className="flex items-center gap-2 px-5 py-2 flex-shrink-0" style={{ background: '#2a1a08', borderBottom: '1px solid #78350f' }}>
+            <Lock size={12} className="text-[#fbbf24] shrink-0" />
+            <span className="text-[10.5px] text-[#fcd34d]">
+              드라이버 <b>구경·시뮬레이션은 무료</b>예요. <b>실장비 PLC 연결</b>은 프리미엄 기능입니다.
+            </span>
+          </div>
+        )}
 
         {/* 카드 그리드 */}
         <div className="flex-1 overflow-y-auto p-4" style={{ background: '#0a0f1a' }}>

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Cpu, Plus, Trash2, X, Plug, Loader2, FileText } from 'lucide-react'
+import { Cpu, Plus, Trash2, X, Plug, Loader2, FileText, Lock } from 'lucide-react'
 import { DEVICE_COLUMNS, DEVICE_PROTOCOLS, BAUD_RATES, PARITIES, isSerial, makeDevice } from '../data/devices'
 import { vendorsList, driversByVendor, getDriver, driverForDevice, isCustomDriver } from '../data/drivers'
 import { plcConnect, plcStatus, plcDisconnect } from '../utils/api'
+import { useAccess } from '../auth/access'
 import DriverEditor from './DriverEditor'
+
+const PLC_PREMIUM_MSG = '실장비 PLC 연결은 프리미엄 기능입니다.\n\n편집·시뮬레이션은 계속 무료로 사용하실 수 있어요.\n실제 PLC 연결이 필요하면 업그레이드를 문의해 주세요.'
 
 function Cell({ device, col, index, onChange }) {
   const value = device[col.key] ?? ''
@@ -70,6 +73,8 @@ function Cell({ device, col, index, onChange }) {
 function ConnectBtn({ device }) {
   const [state, setState] = useState('idle') // idle | busy | ok | err
   const [msg, setMsg] = useState('')
+  const access = useAccess()
+  const locked = !access.plc   // 무료 유저: 실장비 연결 불가 (편집·시뮬은 무료)
 
   const driver = driverForDevice(device)
   const serialDev = driver.conn === 'serial'
@@ -79,7 +84,7 @@ function ConnectBtn({ device }) {
   // 서버의 실제 연결상태를 주기적으로 반영 (창 닫았다 열어도, 마운트 타이밍 무관하게 유지)
   const norm = v => String(v || '').toUpperCase().trim()
   useEffect(() => {
-    if (!serialDev) return
+    if (!serialDev || locked) return
     let alive = true
     const check = () => plcStatus().then(s => {
       if (!alive) return
@@ -91,10 +96,11 @@ function ConnectBtn({ device }) {
     check()
     const id = setInterval(check, 3000)
     return () => { alive = false; clearInterval(id) }
-  }, [device.port, serialDev])
+  }, [device.port, serialDev, locked])
 
   async function test() {
     if (!serialDev) return
+    if (locked) { window.alert(PLC_PREMIUM_MSG); return }   // 무료 유저 게이트
     if (state === 'ok') {   // 이미 연결됨 → 클릭 시 해제
       setState('busy')
       try { await plcDisconnect(); setState('idle'); setMsg('') }
@@ -116,6 +122,13 @@ function ConnectBtn({ device }) {
   }
 
   if (!serialDev) return <span className="text-[9px] text-[#4a5568]">—</span>
+  if (locked) return (
+    <button onClick={() => window.alert(PLC_PREMIUM_MSG)} title="실장비 연결은 프리미엄 기능 — 편집·시뮬레이션은 무료"
+      className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-colors"
+      style={{ background: '#2a1a08', color: '#fbbf24', border: '1px solid #a16207' }}>
+      <Lock size={10} /> 프리미엄
+    </button>
+  )
   return (
     <button onClick={test} title={state === 'ok' ? '연결됨 — 클릭하면 해제' : (msg || '이 설정으로 PLC 연결 테스트')}
       className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-colors"
