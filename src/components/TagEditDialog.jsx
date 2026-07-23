@@ -44,6 +44,9 @@ const fromTag = t => ({
   writeMax: t?.writeMax ?? '',
   writeRate: t?.writeRate ?? '',
   writeHeartbeat: t?.writeHeartbeat || '',
+  alarmHigh: t?.alarmHigh ?? '',
+  alarmLow: t?.alarmLow ?? '',
+  alarmHint: t?.alarmHint || '',
 })
 
 // ── I/O 어드레스 필드 (실 디바이스: 영역 드롭다운 재사용) ─────────────────────
@@ -59,7 +62,7 @@ function AddressField({ form, devices, disabled, onChange }) {
     const raw = isNBND ? '' : form.address
     const { area, num } = parseAreaAddr(raw)
     const curArea = area || areas[0]
-    const compose = (a, n) => n ? normalizeForDriver(driver, `${a}${n}`, form.type) : ''
+    const compose = (a, n) => n ? normalizeForDriver(driver, `${a}${n}`, form.type) : a
     return (
       <div>
         <div className="flex items-center gap-1">
@@ -72,7 +75,7 @@ function AddressField({ form, devices, disabled, onChange }) {
             onChange={e => { const n = e.target.value.replace(/[^0-9.]/g, ''); onChange(compose(curArea, n)) }}
             className={inp + ' font-mono'} />
         </div>
-        {raw && <div className="text-[10px] font-mono mt-1 text-[#22c55e]">✓ {form.address}</div>}
+        {num && <div className="text-[10px] font-mono mt-1 text-[#22c55e]">✓ {form.address}</div>}
       </div>
     )
   }
@@ -131,6 +134,7 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
       writeTo: form.writeTo.trim(),
       writeMin: form.writeMin, writeMax: form.writeMax, writeRate: form.writeRate,
       writeHeartbeat: form.writeHeartbeat.trim(),
+      alarmHigh: form.alarmHigh, alarmLow: form.alarmLow, alarmHint: form.alarmHint.trim(),
     }
   }
   function submit() {
@@ -345,6 +349,25 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
                       ✓ 런타임 200ms마다: 이 태그값 → 램프(변화율제한) → 클램프[{form.writeMin || '-∞'}~{form.writeMax || '∞'}] → <span className="font-mono">{form.writeTo}</span> 쓰기{form.writeHeartbeat ? ` + 하트비트 ${form.writeHeartbeat}` : ''}
                     </div>
                   )}
+                </div>
+
+                {/* 상한/하한 경보 임계값 (예: 토크 — 끊김 전 경고) */}
+                <div className="p-2.5 rounded" style={{ background: '#1a0e0e', border: '1px solid #7f1d1d' }}>
+                  <label className={lbl}>🚨 경보 임계값 <span className="text-[#4a5568] font-normal">(초과 시 능동 감시 알림 · 상한 90% 근접=주의)</span></label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">상한 경보값</span>
+                      <input type="number" className={inp} value={form.alarmHigh} onChange={e => set('alarmHigh', e.target.value)} placeholder="예: 80" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">하한 경보값</span>
+                      <input type="number" className={inp} value={form.alarmLow} onChange={e => set('alarmLow', e.target.value)} placeholder="예: 5" />
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">경보 시 안내 (원인·조치 — AI가 함께 표시)</span>
+                      <input className={inp} value={form.alarmHint} onChange={e => set('alarmHint', e.target.value)} placeholder="예: 라인 얇음 — 토크 급증 시 끊김 위험, 장력·속도 확인" />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className={lbl}>태그 ID <span className="text-[#4a5568] font-normal">(비우면 자동생성 · 변경 시 화면 바인딩 끊길 수 있음)</span></label>

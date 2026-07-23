@@ -129,6 +129,8 @@ export function makeTag(p = {}) {
     ...(p.writeMax != null && p.writeMax !== '' ? { writeMax: Number(p.writeMax) } : {}),   // 클램프 상한
     ...(p.writeRate != null && p.writeRate !== '' ? { writeRate: Number(p.writeRate) } : {}), // 최대 변화율(단위/초)
     ...(p.writeHeartbeat ? { writeHeartbeat: String(p.writeHeartbeat) } : {}),   // 워치독 하트비트 주소
+    ...(p.alarmHigh != null && p.alarmHigh !== '' ? { alarmHigh: Number(p.alarmHigh) } : {}),   // 상한 경보값
+    ...(p.alarmLow != null && p.alarmLow !== '' ? { alarmLow: Number(p.alarmLow) } : {}),       // 하한 경보값
   }
 }
 

@@ -4,6 +4,7 @@ import { TAG_COLUMNS, TAG_TYPES, INPUT_MODES, makeTag, VIRTUAL_DEVICE, isVirtual
 import { parseTagsFromBuffer, exportTagsToExcel, exportTemplate } from '../utils/tagsIO'
 import { normalizeAddress, isValidAddress, applyType } from '../utils/plcAddress'
 import { driverForDevice, normalizeForDriver, validateForDriver, driverAreas, parseAreaAddr } from '../data/drivers'
+import { PRESETS, applyPreset } from '../data/presets'
 import GroupBuilder from './GroupBuilder'
 import TagEditDialog from './TagEditDialog'
 
@@ -92,7 +93,8 @@ function Cell({ tag, col, index, devices, onChange }) {
       const raw = isNBND ? '' : value    // 실 디바이스에 남은 가상(NB/ND) 값은 무시하고 새로 입력
       const { area, num } = parseAreaAddr(raw)
       const curArea = area || areas[0]
-      const compose = (a, n) => n ? normalizeForDriver(driver, `${a}${n}`, tag.type) : ''
+      // 번호 있으면 정규화(%DW100), 없으면 영역만 임시 저장(선택 유지)
+      const compose = (a, n) => n ? normalizeForDriver(driver, `${a}${n}`, tag.type) : a
       return (
         <div>
           <div className="flex items-center gap-0.5">
@@ -105,7 +107,7 @@ function Cell({ tag, col, index, devices, onChange }) {
               onChange={e => { const n = e.target.value.replace(/[^0-9.]/g, ''); onChange(index, { address: compose(curArea, n) }) }}
               className="w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]" />
           </div>
-          {raw && <div className="text-[8px] font-mono mt-0.5 text-[#22c55e]">✓ {value}</div>}
+          {num && <div className="text-[8px] font-mono mt-0.5 text-[#22c55e]">✓ {value}</div>}
         </div>
       )
     }
@@ -349,6 +351,17 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
   const [selectedGroup, setSelectedGroup] = useState('__all__')
   const [checkedIdxs, setCheckedIdxs] = useState(new Set())
   const [editIdx, setEditIdx] = useState(null)   // null=닫힘, -1=새 태그, 그 외=tags 절대인덱스
+  const [presetOpen, setPresetOpen] = useState(false)
+
+  function applyPresetTags(preset) {
+    const prefix = window.prompt(`"${preset.name}" — 이 설비 이름(접두어):`, preset.id)
+    if (prefix === null) return
+    const add = applyPreset(preset, prefix.trim() || preset.id).filter(t => !tags.some(x => x.id === t.id))
+    onReplaceTags([...tags, ...add])
+    setPresetOpen(false)
+    if (add[0]?.utility) setSelectedGroup(add[0].utility)
+    window.alert(`"${preset.name}" 프리셋 태그 ${add.length}개 추가됨.\n\n${preset.note || '입력 태그에 PLC 주소를 연결하세요.'}`)
+  }
 
   if (!open) return null
 
@@ -540,6 +553,25 @@ export default function TagRegistry({ open, tags, devices = [], projectName, onC
                 <Trash2 size={12} /> 선택 삭제 ({checkedIdxs.size})
               </button>
             )}
+            <div className="relative">
+              <button onClick={() => setPresetOpen(o => !o)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#4ade80] hover:bg-[#14532d] transition-colors"
+                style={{ border: '1px solid #22c55e' }} title="검증된 계산/제어 프리셋으로 태그 세트 추가">
+                🧩 프리셋
+              </button>
+              {presetOpen && (
+                <div className="absolute right-0 mt-1 z-30 w-72 rounded-lg overflow-hidden shadow-2xl"
+                  style={{ background: '#0d1420', border: '1px solid #22c55e' }}>
+                  {PRESETS.map(p => (
+                    <button key={p.id} onClick={() => applyPresetTags(p)}
+                      className="w-full text-left px-3 py-2 hover:bg-[#14532d] transition-colors" style={{ borderBottom: '1px solid #1e2a4a' }}>
+                      <div className="text-[11px] font-bold text-[#4ade80]">{p.name}</div>
+                      <div className="text-[9px] text-[#7c8aa5] leading-snug mt-0.5">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={() => setEditIdx(-1)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold text-[#a78bfa] hover:bg-[#2d1b4e] transition-colors"
               style={{ border: '1px solid #7c3aed' }} title="상세 편집 다이얼로그로 추가">
