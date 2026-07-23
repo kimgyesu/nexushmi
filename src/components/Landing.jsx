@@ -1,5 +1,8 @@
 // 웹사이트 메인(랜딩) 페이지 — 사용자 제공 디자인(HTML/CSS) 이식 + 로그인 연결
+//   · 템플릿·드라이버 섹션은 "구경용 티저" — 실제 사용/전체 카탈로그는 로그인 후 편집기에서
+//   · 오너 제공 콘텐츠(템플릿·드라이버)는 전부 무료
 import { PRESETS } from '../data/presets'
+import { DRIVERS } from '../data/drivers'
 
 // 랜딩 소개용 — 프리셋 id → 카테고리 (에디터 갤러리와 같은 데이터 공유)
 const TPL_CAT = {
@@ -15,9 +18,13 @@ function roleCounts(tags) {
   return c
 }
 
+// 드라이버 소개용 — 가상(시뮬레이션) 제외한 실 기종만 (에디터와 같은 DRIVERS 공유)
+const CONN_LABEL = { serial: 'RS-232 / 485', ethernet: '이더넷', virtual: '가상' }
+const SHOWCASE_DRIVERS = DRIVERS.filter(d => d.conn !== 'virtual')
+
 export default function Landing({ onStart }) {
-  const scrollToTemplates = () =>
-    document.getElementById('nx-templates')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const scrollTo = (id) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
     <div className="nx-landing">
@@ -28,7 +35,8 @@ export default function Landing({ onStart }) {
       <header>
         <div className="logo">Nexus<span>HMI</span></div>
         <nav className="nav-links">
-          <button className="nav-link" onClick={scrollToTemplates}>템플릿</button>
+          <button className="nav-link" onClick={() => scrollTo('nx-templates')}>템플릿</button>
+          <button className="nav-link" onClick={() => scrollTo('nx-drivers')}>드라이버</button>
           <button className="nav-btn" onClick={onStart}>로그인</button>
         </nav>
       </header>
@@ -95,7 +103,10 @@ export default function Landing({ onStart }) {
 
         {/* ── 템플릿 소개 (구경용 — 실제 사용은 로그인 후 편집기에서) ── */}
         <section id="nx-templates" className="tpl-section">
-          <span className="tpl-eyebrow">검증된 제어 템플릿</span>
+          <div className="tpl-eyebrow-row">
+            <span className="tpl-eyebrow">검증된 제어 템플릿</span>
+            <span className="tpl-free">모두 무료</span>
+          </div>
           <h2 className="tpl-title">복잡한 계산, <span>클릭 한 번</span>으로 태그 세트 완성</h2>
           <p className="tpl-sub">
             리코일러·언코일러 장력제어 같은 어려운 수식을 미리 만들어 뒀어요.<br />
@@ -133,6 +144,43 @@ export default function Landing({ onStart }) {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
             </button>
             <span className="tpl-market">🏪 직접 만든 템플릿을 마켓에 공유·판매 — 준비중</span>
+          </div>
+        </section>
+
+        {/* ── 지원 드라이버 소개 (티저 — 전체 카탈로그·연결은 로그인 후 편집기에서) ── */}
+        <section id="nx-drivers" className="tpl-section">
+          <div className="tpl-eyebrow-row">
+            <span className="tpl-eyebrow">지원 PLC · 통신 드라이버</span>
+            <span className="tpl-free">모두 무료</span>
+          </div>
+          <h2 className="tpl-title">주요 PLC에 <span>바로 연결</span></h2>
+          <p className="tpl-sub">
+            LS XGT·Modbus 등 산업 현장 통신을 기본 제공합니다. 지원 기종은 계속 추가돼요.<br />
+            <strong>로그인 후 편집기에서 디바이스를 추가</strong>하고 주소만 넣으면 실장비와 통신합니다.
+          </p>
+
+          <div className="drv-grid">
+            {SHOWCASE_DRIVERS.map(d => (
+              <button key={d.id} className="drv-card" onClick={onStart} title="로그인하고 연결하기">
+                <div className="drv-top">
+                  <span className="drv-vendor">{d.vendor}</span>
+                  <span className="tpl-free tpl-free-sm">무료</span>
+                </div>
+                <h3 className="drv-name">{d.name}</h3>
+                <div className="drv-badges">
+                  <span className="drv-badge drv-badge-proto">{d.protocol}</span>
+                  <span className="drv-badge">{CONN_LABEL[d.conn] || d.conn}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="tpl-foot">
+            <button className="cta-btn" onClick={onStart}>
+              <span>로그인하고 장비 연결하기</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+            </button>
+            <span className="tpl-market">🔌 원하는 기종이 없나요? 로그인 후 AI로 커스텀 드라이버 생성 — 무료</span>
           </div>
         </section>
 
@@ -194,7 +242,10 @@ const CSS = `
 .nx-landing .nav-link { background:none; border:none; color:var(--text-sub); font-size:0.9rem; font-weight:500; cursor:pointer; transition:color 0.2s ease; }
 .nx-landing .nav-link:hover { color:#fff; text-shadow:0 0 10px rgba(0,242,255,0.4); }
 .nx-landing .tpl-section { margin-top:6rem; text-align:center; scroll-margin-top:2rem; }
-.nx-landing .tpl-eyebrow { display:inline-block; font-size:0.78rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--primary-glow); margin-bottom:0.9rem; }
+.nx-landing .tpl-eyebrow-row { display:flex; align-items:center; justify-content:center; gap:0.7rem; margin-bottom:0.9rem; }
+.nx-landing .tpl-eyebrow { display:inline-block; font-size:0.78rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--primary-glow); }
+.nx-landing .tpl-free { display:inline-flex; align-items:center; font-size:0.72rem; font-weight:800; letter-spacing:0.5px; padding:0.15rem 0.7rem; border-radius:50px; color:#4ade80; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); box-shadow:0 0 12px rgba(16,185,129,0.15); }
+.nx-landing .tpl-free-sm { font-size:0.62rem; padding:0.08rem 0.5rem; box-shadow:none; }
 .nx-landing .tpl-title { font-size:2.2rem; font-weight:800; letter-spacing:-0.5px; margin-bottom:1rem; color:#fff; line-height:1.25; }
 .nx-landing .tpl-title span { background:linear-gradient(90deg,#38bdf8,#00f2ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .nx-landing .tpl-sub { font-size:1.02rem; color:var(--text-sub); line-height:1.65; max-width:660px; margin:0 auto 2.8rem; }
@@ -214,6 +265,15 @@ const CSS = `
 .nx-landing .tpl-card-use { font-size:0.78rem; font-weight:700; color:var(--primary-glow); margin-top:0.2rem; opacity:0.85; }
 .nx-landing .tpl-foot { margin-top:2.8rem; display:flex; flex-direction:column; align-items:center; gap:0.9rem; }
 .nx-landing .tpl-market { font-size:0.85rem; color:#6b7280; }
-@media (max-width:1024px){ .nx-landing .features-grid{ grid-template-columns:repeat(2,1fr);} .nx-landing .tpl-grid{ grid-template-columns:repeat(2,1fr);} }
-@media (max-width:640px){ .nx-landing header{ padding:1rem 1.5rem;} .nx-landing .hero-title{ font-size:2.2rem;} .nx-landing .sub-heading{ font-size:1.4rem;} .nx-landing .features-grid{ grid-template-columns:1fr;} .nx-landing .tpl-grid{ grid-template-columns:1fr;} .nx-landing .tpl-title{ font-size:1.7rem;} }
+.nx-landing .drv-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; }
+.nx-landing .drv-card { text-align:left; background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:1.4rem 1.3rem; cursor:pointer; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:all 0.3s ease; display:flex; flex-direction:column; gap:0.7rem; color:inherit; font-family:inherit; }
+.nx-landing .drv-card:hover { transform:translateY(-4px); border-color:var(--card-border-hover); box-shadow:0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.12); }
+.nx-landing .drv-top { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
+.nx-landing .drv-vendor { font-size:0.72rem; font-weight:700; color:var(--primary-glow); letter-spacing:0.3px; }
+.nx-landing .drv-name { font-size:0.98rem; font-weight:700; color:#fff; line-height:1.35; flex:1; }
+.nx-landing .drv-badges { display:flex; flex-wrap:wrap; gap:0.4rem; }
+.nx-landing .drv-badge { font-size:0.68rem; font-weight:600; padding:0.15rem 0.55rem; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#cbd5e1; }
+.nx-landing .drv-badge-proto { color:#a5f3fc; background:rgba(0,242,255,0.08); border-color:rgba(0,242,255,0.2); }
+@media (max-width:1024px){ .nx-landing .features-grid{ grid-template-columns:repeat(2,1fr);} .nx-landing .tpl-grid{ grid-template-columns:repeat(2,1fr);} .nx-landing .drv-grid{ grid-template-columns:repeat(2,1fr);} }
+@media (max-width:640px){ .nx-landing header{ padding:1rem 1.5rem;} .nx-landing .hero-title{ font-size:2.2rem;} .nx-landing .sub-heading{ font-size:1.4rem;} .nx-landing .features-grid{ grid-template-columns:1fr;} .nx-landing .tpl-grid{ grid-template-columns:1fr;} .nx-landing .drv-grid{ grid-template-columns:1fr;} .nx-landing .tpl-title{ font-size:1.7rem;} }
 `
