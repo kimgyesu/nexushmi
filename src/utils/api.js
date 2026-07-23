@@ -92,6 +92,31 @@ export async function postClaude({ system, messages, max_tokens } = {}) {
   return data
 }
 
+// AI 계산 수식 생성 — 설명 + 사용가능 태그 → 수식 한 줄
+export async function genFormula(description, tags = []) {
+  const tagList = tags.filter(t => !t.formula).map(t =>
+    `- ${t.id}${t.desc ? ` (${t.desc}${t.unit ? ', ' + t.unit : ''})` : ''}`).join('\n')
+  const system = `당신은 HMI 계산 태그의 "수식"을 만드는 도우미입니다.
+사용 가능한 태그 (반드시 이 ID로만 참조):
+${tagList || '(등록된 태그 없음)'}
+
+지원 문법:
+- 연산: + - * / % ^ ( )
+- 함수: abs sqrt round floor ceil min max pow log log10 exp sin cos tan sign
+- 조건: 조건 ? 참값 : 거짓값 · 비교 < > <= >= == != · 논리 && || !
+- 상수: PI, E
+
+규칙:
+- 태그는 반드시 위 목록의 ID로만 참조 (목록에 없는 태그 지어내지 말 것)
+- 단위가 다르면 변환 포함 (예: mm→m 은 /1000)
+- 출력은 "수식 한 줄"만. 설명·단위표기·마크다운·코드블록·따옴표 없이 순수 수식만.`
+  const data = await postClaude({ system, messages: [{ role: 'user', content: String(description || '') }], max_tokens: 300 })
+  let f = String(data.text || '').trim()
+  f = f.replace(/^```[a-z]*\s*/i, '').replace(/```$/, '').trim()   // 코드블록 제거
+  f = f.replace(/^[`'"]|[`'"]$/g, '').trim()                        // 따옴표 제거
+  return f.split('\n')[0].trim()                                    // 첫 줄만
+}
+
 // ── LS XGB Cnet PLC ──
 export async function plcPorts() {
   return safe(async () => {

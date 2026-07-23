@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Tag as TagIcon, ChevronLeft, ChevronRight, Calculator } from 'lucide-react'
+import { X, Tag as TagIcon, ChevronLeft, ChevronRight, Calculator, Sparkles, Loader2 } from 'lucide-react'
 import { VIRTUAL_DEVICE, isVirtualDevice } from '../data/tags'
 import { driverForDevice, driverAreas, normalizeForDriver, validateForDriver, parseAreaAddr } from '../data/drivers'
 import { tryFormula, formulaVars } from '../utils/formula'
+import { genFormula } from '../utils/api'
 
 // 종류 → 타입 매핑
 const isDigital = t => t === 'BIT'
@@ -89,6 +90,20 @@ const lbl = 'text-[10px] font-bold text-[#7c8aa5] mb-1 block'
 export default function TagEditDialog({ open, isNew, tag, groups = [], devices = [], allTags = [], pos, canPrev, canNext, onCommit, onNav, onClose }) {
   const [tab, setTab] = useState('general')
   const [form, setForm] = useState(() => fromTag(tag))
+  const [aiDesc, setAiDesc] = useState('')       // AI 수식 생성용 설명
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiErr, setAiErr] = useState('')
+
+  async function makeFormulaAI() {
+    if (!aiDesc.trim() || aiBusy) return
+    setAiBusy(true); setAiErr('')
+    try {
+      const f = await genFormula(aiDesc.trim(), allTags)
+      if (f) set('formula', f)
+      else setAiErr('수식을 만들지 못했어요')
+    } catch (e) { setAiErr(e.message) }
+    finally { setAiBusy(false) }
+  }
   const tagKey = isNew ? '__new__' : `${tag?.id}#${pos?.cur}`
   useEffect(() => { setForm(fromTag(tag)); setTab('general') }, [tagKey]) // 태그 전환 시 폼 리로드
   const set = (k, v) => setForm(s => ({ ...s, [k]: v }))
@@ -238,6 +253,18 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
                 {/* 계산 태그 (수식) */}
                 <div className="p-2.5 rounded" style={{ background: '#0b1220', border: '1px solid #1e3a5f' }}>
                   <label className={lbl + ' flex items-center gap-1'}><Calculator size={11} className="text-[#60a5fa]" /> 계산 수식 <span className="text-[#4a5568] font-normal">(다른 태그로 자동 계산 — 비우면 일반 태그)</span></label>
+                  {/* AI 수식 생성 */}
+                  <div className="flex gap-1 mb-1.5">
+                    <input className={inp + ' text-[11px]'} value={aiDesc} onChange={e => setAiDesc(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); makeFormulaAI() } }}
+                      placeholder="AI에게 설명: 리코일러는 감길수록 느리게 (직경 커질수록 RPM↓)" />
+                    <button onClick={makeFormulaAI} disabled={aiBusy || !aiDesc.trim()}
+                      className="flex items-center gap-1 px-2.5 rounded text-[11px] font-bold whitespace-nowrap"
+                      style={{ background: '#4c1d95', color: '#e9d5ff', border: '1px solid #7c3aed', opacity: (aiBusy || !aiDesc.trim()) ? 0.5 : 1 }}>
+                      {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} AI 생성
+                    </button>
+                  </div>
+                  {aiErr && <div className="text-[10px] text-[#f87171] mb-1">⚠ {aiErr}</div>}
                   <textarea className={inp + ' font-mono resize-none'} rows={2} value={form.formula}
                     onChange={e => set('formula', e.target.value)}
                     placeholder="예: TAG_LINE_SPEED / (PI * (TAG_DIA/1000))" />
