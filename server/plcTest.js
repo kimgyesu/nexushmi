@@ -1,10 +1,12 @@
-// PLC Modbus 연결 raw 테스트 (HMI 없이 터미널에서 검증)
+// PLC 연결 raw 테스트 (HMI 없이 터미널에서 검증) — Modbus RTU / LS XGT 전용
 //   포트 목록 :  node server/plcTest.js ports
-//   자동 스캔 :  node server/plcTest.js scan  --port COM3
+//   자동 스캔 :  node server/plcTest.js scan  --port COM3                    (Modbus 전용)
 //   값 읽기   :  node server/plcTest.js read  --port COM3 --baud 9600 --station 1 --addr 100 --type WORD
-//   값 쓰기   :  node server/plcTest.js write --port COM3 --baud 9600 --station 1 --addr 100 --type WORD --value 1234
+//   값 쓰기   :  node server/plcTest.js write --port COM3 --baud 9600 --station 1 --addr 100 --value 1234
 //   연속 폴링 :  node server/plcTest.js poll  --port COM3 --baud 9600 --station 1 --addr 100
+//   XGT 전용  :  ... --protocol xgt --baud 115200 --addr %MW100   (주소는 %MW100 형식)
 import { modbus } from './protocols/modbusManager.js'
+import { plc } from './protocols/plcManager.js'
 import { SerialTransport } from './protocols/serialTransport.js'
 
 // --key value 파싱
@@ -24,6 +26,8 @@ const cfg = {
 }
 const addr = args.addr ?? '100'
 const type = (args.type || 'WORD').toUpperCase()
+const proto = (args.protocol || 'modbus').toLowerCase()
+const mgr = proto === 'xgt' ? plc : modbus   // 프로토콜별 매니저 (read/write/poll 공용 인터페이스)
 
 // Modbus CRC16
 function crc16(buf) {
@@ -99,29 +103,29 @@ async function main() {
     return
   }
 
-  console.log(`🔗 연결: ${cfg.path} @ ${cfg.baudRate}/${cfg.parity}/국번${cfg.station}`)
-  await modbus.connect(cfg)
+  console.log(`🔗 연결(${proto}): ${cfg.path} @ ${cfg.baudRate}/${cfg.parity}/국번${cfg.station}`)
+  await mgr.connect(cfg)
   console.log('✅ 포트 열림')
 
   if (cmd === 'read') {
-    const v = await modbus.read([{ device: String(addr), type }])
+    const v = await mgr.read([{ device: String(addr), type }])
     console.log(`📖 ${addr} (${type}) =`, v[String(addr)])
   } else if (cmd === 'write') {
-    await modbus.write(String(addr), Number(args.value), type)
+    await mgr.write(String(addr), Number(args.value), type)
     console.log(`✏️  ${addr} (${type}) ← ${args.value} 쓰기 완료`)
-    const v = await modbus.read([{ device: String(addr), type }])
+    const v = await mgr.read([{ device: String(addr), type }])
     console.log(`📖 재확인 =`, v[String(addr)])
   } else if (cmd === 'poll') {
     console.log('🔁 1초마다 읽기 (Ctrl+C 종료)')
     setInterval(async () => {
-      try { const v = await modbus.read([{ device: String(addr), type }]); console.log(new Date().toLocaleTimeString(), addr, '=', v[String(addr)]) }
+      try { const v = await mgr.read([{ device: String(addr), type }]); console.log(new Date().toLocaleTimeString(), addr, '=', v[String(addr)]) }
       catch (e) { console.log('⚠️', e.message) }
     }, 1000)
     return  // 폴링은 계속 — disconnect 안 함
   } else {
     console.log('사용법: ports | scan | read | write | poll  (파일 상단 주석 참고)')
   }
-  await modbus.disconnect()
+  await mgr.disconnect()
 }
 
 main().catch(e => { console.error('❌', e.message); process.exit(1) })

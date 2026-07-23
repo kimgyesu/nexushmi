@@ -3,7 +3,7 @@ import { useValueSimulator } from '../hooks/useTagSimulator'
 import { useHistorian } from '../hooks/useHistorian'
 import { isSetpointTag, isVirtualDevice } from '../data/tags'
 import { loadGlobalSymbols } from '../data/symbols'
-import { driverForDevice } from '../data/drivers'
+import { driverForDevice, normalizeForDriver } from '../data/drivers'
 import { postEvents, plcConnect, plcRead, plcWrite } from '../utils/api'
 import { createLogger } from '../utils/dataLogger'
 import { loadProject } from '../data/project'
@@ -41,9 +41,11 @@ export default function Runtime() {
 
   // ── 실 PLC 대상 태그 파악 (시리얼 디바이스 + 주소 있는 실태그) ──
   const plcDev = (project.devices || []).find(d => driverForDevice(d).conn === 'serial')
+  const plcDriver = plcDev ? driverForDevice(plcDev) : null
+  // 태그 주소를 드라이버 형식으로 정규화 (Modbus는 그대로 M100/D100, XGT/LS는 %DW100/%MX 로)
   const plcItems = useRef(plcDev
     ? (project.tags || []).filter(t => t.device === plcDev.name && t.address && !isVirtualDevice(t.device))
-        .map(t => ({ id: t.id, device: t.address, type: t.type }))
+        .map(t => ({ id: t.id, device: normalizeForDriver(plcDriver, t.address, t.type), type: t.type }))
     : []).current
   const plcSkipIds = useRef(new Set(plcItems.map(i => i.id))).current
   const [plcOn, setPlcOn] = useState(false)
