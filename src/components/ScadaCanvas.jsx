@@ -1233,7 +1233,20 @@ export default function ScadaCanvas({
   onUndo, onRedo, canUndo = false, canRedo = false,
   onAlign, onDistribute, onGroup, onUngroup,
   onOpenStyleGallery, onAddPanel,
+  pendingPlace = null,        // 빈 공간 없어 사용자가 위치 선택할 요소 큐 [{type,w,h,label,...}]
+  onPlaceAt,                  // (canvasX, canvasY) => void
+  onCancelPlace,              // () => void
 }) {
+  const placing = Array.isArray(pendingPlace) && pendingPlace.length > 0
+  const placeItem = placing ? pendingPlace[0] : null
+  const [placeCursor, setPlaceCursor] = useState(null)   // 배치 모드 커서 위치(SVG좌표)
+  // 배치 모드 — Esc 로 취소
+  useEffect(() => {
+    if (!placing) return
+    const fn = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancelPlace?.() } }
+    window.addEventListener('keydown', fn, true)
+    return () => window.removeEventListener('keydown', fn, true)
+  }, [placing, onCancelPlace])
   const [zoom, setZoom] = useState(1)
   const [dragOver, setDragOver] = useState(false)
   const [dragPos, setDragPos] = useState(null)
@@ -1845,6 +1858,20 @@ export default function ScadaCanvas({
         onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false) }}
         onDrop={handleDrop}
       >
+        {/* 배치 모드 배너 — 빈 공간 없어 사용자가 위치를 클릭해 배치 */}
+        {placing && (
+          <div className="sticky top-0 z-40 flex items-center gap-3 px-4 py-2 shadow-lg"
+            style={{ background:'#14532d', borderBottom:'1px solid #22c55e' }}>
+            <span className="text-[12px] font-bold text-[#4ade80]">📍 배치할 위치를 클릭하세요</span>
+            <span className="text-[11px] text-[#a7f3d0]">
+              «{placeItem?.label || '요소'}» · 남은 {pendingPlace.length}개 · 빨간 영역은 이미 사용 중
+            </span>
+            <button onClick={() => onCancelPlace?.()}
+              className="ml-auto px-2.5 py-1 rounded text-[11px] font-bold text-[#fca5a5] hover:bg-[#450a0a] transition-colors"
+              style={{ border:'1px solid #7f1d1d' }}>취소 (Esc)</button>
+          </div>
+        )}
+
         {/* 드래그 오버 힌트 */}
         {dragOver && (
           <div className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none">
@@ -1932,8 +1959,17 @@ export default function ScadaCanvas({
                   finishWire()
                 }
               }}
+              onPointerMove={placing ? (e => setPlaceCursor(screenToSvg(e.clientX, e.clientY))) : undefined}
+              onPointerLeave={placing ? (() => setPlaceCursor(null)) : undefined}
               onPointerDown={e => {
                 const t = e.target
+                // 배치 모드 — 클릭 위치에 보류 요소를 배치 (다른 모든 처리보다 우선)
+                if (placing) {
+                  e.preventDefault(); e.stopPropagation()
+                  const p = screenToSvg(e.clientX, e.clientY)
+                  onPlaceAt?.(p.x, p.y)
+                  return
+                }
                 if (ctxMenu) { setCtxMenu(null); return }
                 // 선 그리기 시작
                 if (penMode) {
@@ -2186,6 +2222,25 @@ export default function ScadaCanvas({
                     fill="none" stroke="#22c55e" strokeWidth={2} />}
                 </g>)
               })()}
+
+              {/* 배치 모드 — 기존 요소(점유 영역) 흐리게 + 커서에 고스트 박스 */}
+              {placing && (
+                <g style={{ pointerEvents:'none' }}>
+                  <rect x={0} y={0} width={canvasW} height={canvasH} fill="#0a0f1a" opacity={0.35} />
+                  {canvasElements.map(el => {
+                    const b = elementBBox(el)
+                    return <rect key={`occ-${el.id}`} x={b.left - 6} y={b.top - 6}
+                      width={(b.right - b.left) + 12} height={(b.bottom - b.top) + 12} rx={4}
+                      fill="#ef4444" fillOpacity={0.10} stroke="#ef4444" strokeOpacity={0.45}
+                      strokeWidth={1} strokeDasharray="4 3" />
+                  })}
+                  {placeCursor && (() => {
+                    const w = placeItem?.w || 64, h = placeItem?.h || 64
+                    return <rect x={placeCursor.x - w / 2} y={placeCursor.y - h / 2} width={w} height={h} rx={4}
+                      fill="#22c55e" fillOpacity={0.18} stroke="#22c55e" strokeWidth={2} />
+                  })()}
+                </g>
+              )}
             </svg>
 
             {/* 인라인 텍스트 편집 */}

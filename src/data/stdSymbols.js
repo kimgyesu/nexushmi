@@ -120,11 +120,54 @@ const RAW = [
       <g id="fill-level"><rect x="20" y="12" width="26" height="60" rx="12" fill="url(#scl)" opacity=".55"/></g>
       <rect x="18" y="10" width="30" height="64" rx="14" fill="none" stroke="${E}" stroke-width="1.5"/>
       <g stroke="${S4}" stroke-width="1" opacity=".6"><line x1="22" y1="26" x2="44" y2="26"/><line x1="22" y1="40" x2="44" y2="40"/><line x1="22" y1="54" x2="44" y2="54"/></g>` },
+
+  // 언코일러(권출) — rotate-coil : 소재가 우측으로 풀려나감. 스포크+감김링으로 회전이 보이게
+  { id: 'std_uncoiler', name: '언코일러(권출)', w: 80, h: 80, layers: [{ id: 'rotate-coil', animType: 'rotate' }],
+    svg: `${DEFS(rad('ucc', S1, S3) + cyl('ucp', S4, S2, S4))}
+      <rect x="8" y="68" width="60" height="8" rx="2" fill="${S3}" stroke="${E}" stroke-width="1.2"/>
+      <path d="M30 68 L34 40 L42 40 L46 68 z" fill="url(#ucp)" stroke="${E}" stroke-width="1.1"/>
+      <circle cx="38" cy="38" r="24" fill="url(#ucc)" stroke="${E}" stroke-width="1.6"/>
+      <g id="rotate-coil">${hub(38, 38, 21)}
+        <circle cx="38" cy="38" r="18" fill="none" stroke="${S4}" stroke-width="1.1" opacity=".5"/>
+        <circle cx="38" cy="38" r="12" fill="none" stroke="${S4}" stroke-width="1.1" opacity=".5"/>
+        <path d="M38 38 V17 M38 38 H59 M38 38 V59 M38 38 H17" stroke="${S4}" stroke-width="2.4" stroke-linecap="round" opacity=".75"/>
+        <path d="M38 38 L53 23" stroke="${AC}" stroke-width="2.6" stroke-linecap="round"/>
+      </g>
+      <circle cx="38" cy="38" r="6" fill="${S2}" stroke="${E}" stroke-width="1.2"/>
+      <circle cx="38" cy="38" r="2" fill="${E}"/>
+      <path d="M38 14 H77" stroke="${S1}" stroke-width="2.4" stroke-linecap="round"/>` },
+
+  // 리코일러(권취) — rotate-coil : 소재가 좌측에서 들어와 감김(코일이 더 두툼) + 드라이브
+  { id: 'std_recoiler', name: '리코일러(권취)', w: 80, h: 80, layers: [{ id: 'rotate-coil', animType: 'rotate' }],
+    svg: `${DEFS(rad('rcc', S1, S3) + cyl('rcp', S4, S2, S4))}
+      <rect x="8" y="68" width="60" height="8" rx="2" fill="${S3}" stroke="${E}" stroke-width="1.2"/>
+      <path d="M30 68 L34 40 L42 40 L46 68 z" fill="url(#rcp)" stroke="${E}" stroke-width="1.1"/>
+      <rect x="58" y="58" width="16" height="12" rx="2" fill="${S3}" stroke="${E}" stroke-width="1.1"/>
+      <circle cx="38" cy="38" r="26" fill="url(#rcc)" stroke="${E}" stroke-width="1.6"/>
+      <g id="rotate-coil">${hub(38, 38, 23)}
+        <circle cx="38" cy="38" r="20" fill="none" stroke="${S4}" stroke-width="1.1" opacity=".5"/>
+        <circle cx="38" cy="38" r="14" fill="none" stroke="${S4}" stroke-width="1.1" opacity=".5"/>
+        <circle cx="38" cy="38" r="8" fill="none" stroke="${S4}" stroke-width="1.1" opacity=".5"/>
+        <path d="M38 38 V15 M38 38 H61 M38 38 V61 M38 38 H15" stroke="${S4}" stroke-width="2.4" stroke-linecap="round" opacity=".75"/>
+        <path d="M38 38 L54 22" stroke="${GRN}" stroke-width="2.6" stroke-linecap="round"/>
+      </g>
+      <circle cx="38" cy="38" r="6" fill="${S2}" stroke="${E}" stroke-width="1.2"/>
+      <circle cx="38" cy="38" r="2" fill="${E}"/>
+      <path d="M2 12 H38" stroke="${S1}" stroke-width="2.4" stroke-linecap="round"/>` },
 ]
+
+// 파트(분류) 매핑 — "내 심볼"에서 종류별로 묶여 보이도록
+const STD_CAT = {
+  std_pump: '회전기계', std_motor: '회전기계', std_blower: '회전기계', std_agitator: '회전기계',
+  std_tank: '탱크·용기', std_vessel: '탱크·용기', std_silo: '탱크·용기', std_cyclone: '탱크·용기', std_scrubber: '탱크·용기',
+  std_valve: '밸브·이송', std_conveyor: '밸브·이송', std_hx: '밸브·이송',
+  std_uncoiler: '권취·권출', std_recoiler: '권취·권출',
+}
 
 export const STD_SYMBOLS = RAW.map(r =>
   makeSvgSymbol({
     id: r.id, name: r.name, w: r.w, h: r.h, layers: r.layers,
+    category: STD_CAT[r.id] || '표준부품',
     svgContent: `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">${r.svg}</svg>`,
   })
 )

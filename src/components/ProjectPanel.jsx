@@ -3,7 +3,7 @@ import {
   ChevronRight, ChevronDown, Monitor, Layers, LayoutTemplate,
   AppWindow, Plus, Trash2, Pencil, Check, X,
   Settings, Package, Hash, Gauge, Activity,
-  FolderOpen, FilePlus, Copy, Save, Cpu, Maximize2, Tag, Type, RectangleHorizontal, Shapes,
+  FolderOpen, Folder, FilePlus, Copy, Save, Cpu, Maximize2, Tag, Type, RectangleHorizontal, Shapes,
   Server, Globe, HardDrive, Usb, Wifi, Database, Share2, FlaskConical, Clock,
 } from 'lucide-react'
 import { SCREEN_TYPES, makeScreen, RESOLUTION_PRESETS } from '../data/project'
@@ -27,6 +27,15 @@ const BG_PRESETS = [
   '#172554','#1e1b4b','#4a1942','#431407','#14532d',
   '#2d2d2d','#3d2b1f','#1f2937','#292524','#1c1917',
 ]
+
+/* 컨텍스트 메뉴 위치 보정 — 화면 밖으로 넘치면 위/왼쪽으로 뒤집어 배치 */
+function menuPos(x, y, w, h) {
+  const vw = window.innerWidth, vh = window.innerHeight, PAD = 8
+  const left = (x + w > vw - PAD) ? Math.max(PAD, x - w) : x
+  const maxH = Math.min(h, vh - PAD * 2)
+  const top = (y + maxH > vh - PAD) ? Math.max(PAD, vh - PAD - maxH) : y
+  return { position: 'fixed', left, top }
+}
 
 /* ════════════════════════════════════════════
    컨텍스트 메뉴
@@ -690,12 +699,34 @@ function GroupboxPopup({ onClose }) {
   )
 }
 
-function ObjectsTab({ customSymbols, onOpenSymbols, onDeleteSymbol, onStartLineDraw, onStartWireDraw }) {
+function ObjectsTab({ customSymbols, onOpenSymbols, onDeleteSymbol, onSetSymbolCategory, symbolParts = [], onAddSymbolPart, onDeleteSymbolPart, onStartLineDraw, onStartWireDraw }) {
   const [shapeOpen, setShapeOpen] = useState(false)
   const [groupboxOpen, setGroupboxOpen] = useState(false)
   const groupboxRef = useRef(null)
   const shapeRef = useRef(null)
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, sym }
+  const [collapsedParts, setCollapsedParts] = useState(() => new Set())
+  const [dragOverPart, setDragOverPart] = useState(null)   // 심볼 드래그로 이동 중인 대상 파트
+  const [headerCtx, setHeaderCtx] = useState(null)         // 파트 헤더 우클릭 { x, y, part }
+  const togglePart = (name) => setCollapsedParts(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n })
+
+  // 파트(분류)별 그룹핑 — 심볼의 category + 빈 파트(symbolParts) 합집합, '기타'는 맨 뒤
+  const grouped = {}
+  for (const s of customSymbols) { const c = s.category || '기타'; (grouped[c] ||= []).push(s) }
+  const partNames = [...new Set([...symbolParts, ...Object.keys(grouped)])]
+    .sort((a, b) => (a === '기타') - (b === '기타') || a.localeCompare(b))
+  // 파트 전체를 다른 이름으로 (기존 파트명이면 합쳐짐)
+  const renamePart = (from, to) => {
+    const t = String(to || '').trim().slice(0, 20)
+    if (!t || t === from) return
+    ;(grouped[from] || []).forEach(s => onSetSymbolCategory?.(s.id, t))
+  }
+  // 심볼을 파트 헤더에 드롭 → 그 파트로 이동
+  const handlePartDrop = (e, part) => {
+    e.preventDefault(); setDragOverPart(null)
+    const id = e.dataTransfer.getData('application/x-hmi-symbol')
+    if (id) onSetSymbolCategory?.(id, part)
+  }
   useEffect(() => {
     if (!shapeOpen) return
     function close(e) { if (shapeRef.current && !shapeRef.current.contains(e.target)) setShapeOpen(false) }
@@ -765,43 +796,132 @@ function ObjectsTab({ customSymbols, onOpenSymbols, onDeleteSymbol, onStartLineD
         )
       })}
       <div className="border-t border-[#2d3748] my-2" />
-      <div className="flex items-center justify-between px-1 pb-1">
-        <p className="text-[9px] font-bold text-[#a78bfa] tracking-widest uppercase">내 심볼</p>
+      <div className="flex items-center gap-1 px-1 pb-1">
+        <p className="flex-1 text-[9px] font-bold text-[#a78bfa] tracking-widest uppercase">내 심볼</p>
+        <button onClick={() => { const n = window.prompt('새 파트 이름:', ''); if (n && n.trim()) onAddSymbolPart?.(n.trim()) }}
+          title="빈 파트(분류) 만들기"
+          className="flex items-center gap-0.5 text-[9px] text-[#94a3b8] hover:text-white px-1.5 py-0.5 rounded border border-[#374151] hover:bg-[#1e2736] transition-colors">
+          <Folder size={9} /> 파트
+        </button>
         <button onClick={onOpenSymbols}
+          title="심볼 등록 (그리기/이미지)"
           className="flex items-center gap-0.5 text-[9px] text-[#c4b5fd] hover:text-white px-1.5 py-0.5 rounded border border-[#4c1d95] hover:bg-[#2d1b4e] transition-colors">
-          <Plus size={9} /> 추가
+          <Plus size={9} /> 심볼
         </button>
       </div>
-      {customSymbols.length === 0
+      {partNames.length === 0
         ? <p className="text-[9px] text-[#4a5568] px-1 italic">등록된 심볼이 없습니다.</p>
-        : (
-          <div className="grid grid-cols-3 gap-1 px-1">
-            {customSymbols.map(s => (
-              <div key={s.id} draggable
-                onDragStart={e => { e.dataTransfer.setData('application/x-hmi-symbol', s.id); e.dataTransfer.effectAllowed = 'copy' }}
-                onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, sym: s }) }}
-                className="flex flex-col items-center gap-0.5 p-1 rounded border border-transparent hover:border-[#4a5568] hover:bg-[#2d3748] cursor-grab active:cursor-grabbing select-none">
-                {isSvgSymbol(s)
-                  ? <div className="w-8 h-8 rounded bg-[#0f172a] overflow-hidden flex items-center justify-center"
-                      dangerouslySetInnerHTML={{ __html: s.svgContent }} />
-                  : <img src={s.on} alt={s.name} className="w-8 h-8 object-contain rounded bg-[#0f172a]" />}
-                <span className="text-[8px] text-[#94a3b8] truncate w-full text-center">{s.name}</span>
+        : partNames.map(part => {
+          const items = grouped[part] || []
+          const open = !collapsedParts.has(part)
+          return (
+            <div key={part} className="mb-0.5">
+              {/* 파트 헤더 (접기/펴기 · 드롭 타겟 · 우클릭 메뉴) */}
+              <div onClick={() => togglePart(part)}
+                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setHeaderCtx({ x: e.clientX, y: e.clientY, part }) }}
+                onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverPart !== part) setDragOverPart(part) }}
+                onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverPart(dp => dp === part ? null : dp) }}
+                onDrop={e => handlePartDrop(e, part)}
+                className="flex items-center gap-1 px-1 py-1 rounded cursor-pointer transition-colors select-none"
+                style={dragOverPart === part
+                  ? { background: '#14532d', outline: '1px dashed #22c55e' }
+                  : undefined}
+                onMouseEnter={e => { if (dragOverPart !== part) e.currentTarget.style.background = '#1a2233' }}
+                onMouseLeave={e => { if (dragOverPart !== part) e.currentTarget.style.background = '' }}>
+                {open ? <ChevronDown size={10} className="text-[#4a5568] shrink-0" /> : <ChevronRight size={10} className="text-[#4a5568] shrink-0" />}
+                <Folder size={10} className={dragOverPart === part ? 'text-[#4ade80] shrink-0' : 'text-[#a78bfa] shrink-0'} />
+                <span className="flex-1 text-[10px] font-semibold text-[#cbd5e1] truncate">{part}</span>
+                <span className="text-[9px] text-[#4a5568]">{items.length}</span>
               </div>
-            ))}
-          </div>
-        )
+              {open && (items.length === 0
+                ? <p className="text-[8px] text-[#4a5568] px-2 py-1 italic">비어 있음 — 심볼을 여기로 드래그</p>
+                : <div className="grid grid-cols-3 gap-1 px-1 pb-1">
+                  {items.map(s => (
+                    <div key={s.id} draggable
+                      onDragStart={e => { e.dataTransfer.setData('application/x-hmi-symbol', s.id); e.dataTransfer.effectAllowed = 'copy' }}
+                      onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, sym: s }) }}
+                      className="flex flex-col items-center gap-0.5 p-1 rounded border border-transparent hover:border-[#4a5568] hover:bg-[#2d3748] cursor-grab active:cursor-grabbing select-none">
+                      {isSvgSymbol(s)
+                        ? <div className="w-8 h-8 rounded bg-[#0f172a] overflow-hidden flex items-center justify-center"
+                            dangerouslySetInnerHTML={{ __html: s.svgContent }} />
+                        : <img src={s.on} alt={s.name} className="w-8 h-8 object-contain rounded bg-[#0f172a]" />}
+                      <span className="text-[8px] text-[#94a3b8] truncate w-full text-center">{s.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })
       }
+
+      {/* 파트 헤더 우클릭 — 이름변경/합치기 */}
+      {headerCtx && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setHeaderCtx(null)} onContextMenu={e => { e.preventDefault(); setHeaderCtx(null) }} />
+          <div style={{ ...menuPos(headerCtx.x, headerCtx.y, 160, 300), zIndex: 9999,
+            background:'#10151f', border:'1px solid #374151', borderRadius:6,
+            boxShadow:'0 4px 20px rgba(0,0,0,0.6)', minWidth:160, maxHeight:'min(320px, 70vh)', overflowY:'auto', padding:'4px 0' }}>
+            <div className="px-3 py-1.5 text-[10px] text-[#64748b] border-b border-[#1e293b] truncate max-w-[190px]">
+              📁 {headerCtx.part} ({grouped[headerCtx.part]?.length || 0})
+            </div>
+            <button className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#cbd5e1] hover:bg-[#1a2233] transition-colors"
+              onClick={() => {
+                const name = window.prompt('파트 이름 변경 (기존 파트명 입력 시 합쳐짐):', headerCtx.part)
+                if (name) renamePart(headerCtx.part, name)
+                setHeaderCtx(null)
+              }}>
+              <Pencil size={11} className="text-[#94a3b8]" /> 이름 변경 / 합치기…
+            </button>
+            {partNames.filter(p => p !== headerCtx.part).length > 0 && (
+              <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-bold text-[#4a5568] uppercase tracking-wider">다른 파트로 합치기</div>
+            )}
+            {partNames.filter(p => p !== headerCtx.part).map(p => (
+              <button key={p} className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#cbd5e1] hover:bg-[#1a2233] transition-colors"
+                onClick={() => { renamePart(headerCtx.part, p); setHeaderCtx(null) }}>
+                <Folder size={11} className="text-[#a78bfa]" /> {p} 로 합치기
+              </button>
+            ))}
+            {(grouped[headerCtx.part]?.length || 0) === 0 && headerCtx.part !== '기타' && (
+              <>
+                <div className="h-px bg-[#1e293b] my-1" />
+                <button className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-[#f87171] hover:bg-[#1a0808] transition-colors"
+                  onClick={() => { onDeleteSymbolPart?.(headerCtx.part); setHeaderCtx(null) }}>
+                  <Trash2 size={11} /> 빈 파트 삭제
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {/* 우클릭 컨텍스트 메뉴 */}
       {ctxMenu && (
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setCtxMenu(null)} />
-          <div style={{ position:'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
+          <div style={{ ...menuPos(ctxMenu.x, ctxMenu.y, 150, 300), zIndex: 9999,
             background:'#10151f', border:'1px solid #374151', borderRadius:6,
-            boxShadow:'0 4px 20px rgba(0,0,0,0.6)', minWidth:130, padding:'4px 0' }}>
-            <div className="px-3 py-1.5 text-[10px] text-[#64748b] border-b border-[#1e293b] truncate max-w-[160px]">
+            boxShadow:'0 4px 20px rgba(0,0,0,0.6)', minWidth:150, padding:'4px 0', maxHeight:'min(320px, 70vh)', overflowY:'auto' }}>
+            <div className="px-3 py-1.5 text-[10px] text-[#64748b] border-b border-[#1e293b] truncate max-w-[180px]">
               {ctxMenu.sym.name}
             </div>
+            {/* 파트 이동 */}
+            <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-bold text-[#4a5568] uppercase tracking-wider">파트 이동</div>
+            {partNames.filter(p => p !== (ctxMenu.sym.category || '기타')).map(p => (
+              <button key={p} className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#cbd5e1] hover:bg-[#1a2233] transition-colors"
+                onClick={() => { onSetSymbolCategory?.(ctxMenu.sym.id, p); setCtxMenu(null) }}>
+                <Folder size={11} className="text-[#a78bfa]" /> {p}
+              </button>
+            ))}
+            <button className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#4ade80] hover:bg-[#0f2418] transition-colors"
+              onClick={() => {
+                const name = window.prompt('새 파트 이름:', '')
+                if (name && name.trim()) onSetSymbolCategory?.(ctxMenu.sym.id, name.trim())
+                setCtxMenu(null)
+              }}>
+              <Plus size={11} /> 새 파트로…
+            </button>
+            <div className="h-px bg-[#1e293b] my-1" />
             <button
               className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-[#f87171] hover:bg-[#1a0808] transition-colors"
               onClick={() => {
@@ -850,6 +970,10 @@ export default function ProjectPanel({
   onSave,
   onOpenSymbols,
   onDeleteSymbol,
+  onSetSymbolCategory,
+  symbolParts = [],
+  onAddSymbolPart,
+  onDeleteSymbolPart,
   onStartLineDraw,
   onStartWireDraw,
   onOpenRecipe,
@@ -943,7 +1067,7 @@ export default function ProjectPanel({
         )}
 
         {activeTab === 'objects' && (
-          <ObjectsTab customSymbols={customSymbols} onOpenSymbols={onOpenSymbols} onDeleteSymbol={onDeleteSymbol} onStartLineDraw={onStartLineDraw} onStartWireDraw={onStartWireDraw} />
+          <ObjectsTab customSymbols={customSymbols} onOpenSymbols={onOpenSymbols} onDeleteSymbol={onDeleteSymbol} onSetSymbolCategory={onSetSymbolCategory} symbolParts={symbolParts} onAddSymbolPart={onAddSymbolPart} onDeleteSymbolPart={onDeleteSymbolPart} onStartLineDraw={onStartLineDraw} onStartWireDraw={onStartWireDraw} />
         )}
       </div>
 

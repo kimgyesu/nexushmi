@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { CANVAS_ELEMENTS, ELEMENT_TYPE_LABELS, createElement, createSymbolElement } from './data/canvasElements'
 import { DEFAULT_TAGS, makeTag, VIRTUAL_DEVICE, withVirtualAddress, nextVirtualAddress, isVirtualDevice } from './data/tags'
 import { DEFAULT_DEVICES, makeDevice } from './data/devices'
-import { loadGlobalSymbols, saveGlobalSymbols, makeSvgSymbol } from './data/symbols'
+import { loadGlobalSymbols, saveGlobalSymbols, makeSvgSymbol, loadGlobalParts, saveGlobalParts } from './data/symbols'
 import { STD_SYMBOLS } from './data/stdSymbols'
 import { DEMO_PROJECT, emptyProject, loadProject, saveProject, makeScreen, DEFAULT_RESOLUTION } from './data/project'
 import { saveProjectToServer, captureLearning, getLearningProfile } from './utils/api'
@@ -441,6 +441,7 @@ export default function App() {
     const userClean = (Array.isArray(user) ? user : []).filter(s => !String(s.id).startsWith('std_'))
     return [...STD_SYMBOLS, ...userClean]
   })
+  const [symbolParts, setSymbolParts] = useState(() => loadGlobalParts())   // 빈 파트도 유지 (사용자 정의 분류)
   const [recipeSets, setRecipeSets] = useState(initial.recipeSets ?? [])
   const recipeSetsRef = useRef(recipeSets); recipeSetsRef.current = recipeSets
 
@@ -476,6 +477,7 @@ export default function App() {
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [templateFocusGroup, setTemplateFocusGroup] = useState('')
   const [driverLibOpen, setDriverLibOpen] = useState(false)
+  const [pendingPlace, setPendingPlace] = useState(null)   // 빈 공간 없어 사용자가 위치 선택할 요소들
   // 패널 스타일 (갤러리에서 선택, localStorage 저장) — 새 패널에 자동 적용
   const [panelStyleKey, setPanelStyleKey] = useState(loadActiveStyleKey())
   const panelStyleRef = useRef(panelStyleKey); panelStyleRef.current = panelStyleKey
@@ -942,6 +944,21 @@ export default function App() {
   const deleteSymbol = useCallback((id) => {
     setSymbols(prev => { const next = prev.filter(s => s.id !== id); saveGlobalSymbols(next); return next })
   }, [])
+  // 심볼 파트(분류) 변경 — 종류별로 나눠 정리 (새 파트명이면 파트 목록에도 등록)
+  const setSymbolCategory = useCallback((id, category) => {
+    const cat = String(category || '기타').trim().slice(0, 20) || '기타'
+    setSymbols(prev => { const next = prev.map(s => s.id === id ? { ...s, category: cat } : s); saveGlobalSymbols(next); return next })
+    setSymbolParts(prev => { if (prev.includes(cat) || cat === '기타') return prev; const next = [...prev, cat]; saveGlobalParts(next); return next })
+  }, [])
+  // 빈 파트 미리 만들기 / 삭제 (심볼 없이도 유지)
+  const addSymbolPart = useCallback((name) => {
+    const p = String(name || '').trim().slice(0, 20)
+    if (!p) return
+    setSymbolParts(prev => { if (prev.includes(p)) return prev; const next = [...prev, p]; saveGlobalParts(next); return next })
+  }, [])
+  const deleteSymbolPart = useCallback((name) => {
+    setSymbolParts(prev => { const next = prev.filter(p => p !== name); saveGlobalParts(next); return next })
+  }, [])
   const addSymbolElement = useCallback((symbolId, x, y) => {
     const sym = symbolsRef.current.find(s => s.id === symbolId)
     const id = 'e' + (nextIdRef.current++)
@@ -1033,6 +1050,22 @@ export default function App() {
     })
   }, [])
 
+  // 보류 배치: 사용자가 캔버스에서 위치를 클릭하면 큐의 첫 요소를 그 자리에 배치
+  const placePendingAt = useCallback((cx, cy) => {
+    setPendingPlace(prev => {
+      if (!prev || !prev.length) return null
+      const [item, ...rest] = prev
+      const id = 'e' + (nextIdRef.current++)
+      const el = item.type === 'symbol'
+        ? createSymbolElement(item.symbolId, clampX(cx), clampY(cy), id, item.w, item.h, item.tagId, item.label, item.role)
+        : createElement(item.type, clampX(cx), clampY(cy), id, item.tagId, item.label)
+      patchActiveScreen(s => ({ elements: [...s.elements, el] }))
+      setSelectedId(id)
+      return rest.length ? rest : null
+    })
+  }, [patchActiveScreen])
+  const cancelPending = useCallback(() => setPendingPlace(null), [])
+
   // 템플릿 적용 → 태그 반영 + 그 그룹으로 태그창 열기 (아무데나 섞이지 않게 그룹 필터)
   const applyTemplateTags = useCallback((newTags, focusGroup) => {
     replaceTags(newTags)
@@ -1066,41 +1099,54 @@ export default function App() {
     const tagIds = new Set(tagsRef.current.map(t => t.id))
     const devNames = new Set(devicesRef.current?.map?.(d => d.name) || [])
     let added = 0, removed = 0, bound = 0, moved = 0
+    // 기존 배치 보존용: 이 배치가 "처음부터 만들기"인지 판단 (빈 화면 or clear가 있을 때만 자동 재배치 허용)
+    const startedEmpty = els.length === 0
+    let didClear = false
+    const noSpaceItems = []   // 빈 공간이 없어 배치 못한 새 요소 (사용자가 영역 선택하도록)
+    // 바운딩박스 겹침 판정 (중심앵커 요소 기준 + 여백)
+    const nBox = (x, y, w, h) => ({ left: x - w / 2, top: y - h / 2, right: x + w / 2, bottom: y + h / 2 })
+    const overlap = (a, b, pad = 14) => !(a.right + pad < b.left || a.left - pad > b.right || a.bottom + pad < b.top || a.top - pad > b.bottom)
+    const hitsAny = (x, y, w, h) => els.some(e => overlap(nBox(x, y, w, h), elementBBox(e)))
     for (const a of actions) {
       const op = a && a.op
-      if (op === 'clear') { els = []; binds = {} }
+      if (op === 'clear') { els = []; binds = {}; didClear = true }
       else if (op === 'add') {
         const id = 'e' + (nextIdRef.current++)
         const type = ['switch','lamp','wordlamp','gauge','numeric','bar','text','groupbox','shape','symbol','recipetable'].includes(a.type) ? a.type : 'numeric'
         const noTagTypes = ['text', 'groupbox', 'shape', 'recipetable']
         const tagId = noTagTypes.includes(type) ? '' : (a.tagId || defaultTagFor(type, tagsRef.current))
         const label = a.label || (ELEMENT_TYPE_LABELS[type] ?? type).toUpperCase()
-        let x, y
-        if (Number.isFinite(+a.x) && Number.isFinite(+a.y)) {
-          // AI가 좌표를 지정한 경우: 겹치면 약간 이동
-          x = clampX(+a.x); y = clampY(+a.y)
-          const STEP = 20, GAP = 90
-          let tries = 0
-          while (tries++ < 30 && els.some(e => Math.abs(e.x - x) < GAP && Math.abs(e.y - y) < GAP)) {
-            x = clampX(x + STEP); if (x > resolution.w - GAP) { x = 60; y = clampY(y + GAP) }
-          }
-        } else {
-          // AI가 좌표 미지정: 빈 공간 자동 탐색
-          const W = resolution.w, H = resolution.h
-          const COL_W = 120, ROW_H = 80, MARGIN = 60
-          const cols = Math.max(1, Math.floor((W - MARGIN * 2) / COL_W))
-          let placed = false
-          outer: for (let row = 0; row < 20; row++) {
-            for (let col = 0; col < cols; col++) {
-              const cx = clampX(MARGIN + col * COL_W)
-              const cy = clampY(MARGIN + row * ROW_H)
-              if (!els.some(e => Math.abs(e.x - cx) < COL_W * 0.8 && Math.abs(e.y - cy) < ROW_H * 0.8)) {
-                x = cx; y = cy; placed = true; break outer
-              }
+        // 새 요소의 대략 크기 (겹침 판정용)
+        const ew = type === 'symbol' ? (+a.w || 64) : type === 'groupbox' ? (+a.width || 200) : type === 'bar' ? 200 : 92
+        const eh = type === 'symbol' ? (+a.h || 64) : type === 'groupbox' ? (+a.height || 140) : type === 'bar' ? 120 : 46
+        const W = resolution.w, H = resolution.h, MARGIN = 40
+        // 빈 공간 탐색 — 선호 위치(있으면)에서 시작해 격자로 스캔, 바운딩박스로 겹침 판정
+        const findSpot = () => {
+          const px = Number.isFinite(+a.x) ? clampX(+a.x) : null
+          const py = Number.isFinite(+a.y) ? clampY(+a.y) : null
+          if (px != null && py != null && !hitsAny(px, py, ew, eh)) return { x: px, y: py }
+          const stepX = Math.round(ew + 24), stepY = Math.round(eh + 20)
+          const startY = py != null ? py : MARGIN + eh / 2 + 20  // 좌표 지정 시 그 근처부터
+          for (let y2 = startY; y2 < H - eh / 2; y2 += stepY) {
+            for (let x2 = MARGIN + ew / 2; x2 < W - ew / 2; x2 += stepX) {
+              if (!hitsAny(x2, y2, ew, eh)) return { x: clampX(x2), y: clampY(y2) }
             }
           }
-          if (!placed) { x = clampX(MARGIN); y = clampY(MARGIN + els.length * ROW_H) }
+          // 위쪽부터 다시 (선호 y 아래에서 못 찾았을 때)
+          for (let y2 = MARGIN + eh / 2 + 20; y2 < H - eh / 2; y2 += stepY) {
+            for (let x2 = MARGIN + ew / 2; x2 < W - ew / 2; x2 += stepX) {
+              if (!hitsAny(x2, y2, ew, eh)) return { x: clampX(x2), y: clampY(y2) }
+            }
+          }
+          return null  // 빈 공간 없음
         }
+        const spot = findSpot()
+        if (!spot) {
+          // 빈 공간 없음 → 배치하지 않고 보류 (사용자가 영역 선택 → 드롭)
+          noSpaceItems.push({ type, symbolId: a.symbolId || '', w: ew, h: eh, tagId: a.tagId || '', label, role: a.role || 'switchlamp', raw: a })
+          continue
+        }
+        const x = spot.x, y = spot.y
         let newEl
         if (type === 'symbol') {
           const w = +a.w || 64, h = +a.h || 64
@@ -1333,6 +1379,7 @@ export default function App() {
         // AI가 생성한 SVG를 심볼 라이브러리에 등록
         const sym = makeSvgSymbol({
           name: a.name || '생성 심볼',
+          category: a.category || '',   // AI가 파트 지정 가능 (없으면 '기타')
           svgContent: a.svgContent,
           layers: a.layers || [],
           w: a.w || 80,
@@ -1347,8 +1394,9 @@ export default function App() {
     }
     // ── groupbox 자동 격자 재배치 ──────────────────────────────────────────
     // AI 좌표가 부정확해도 클라이언트에서 깔끔하게 정렬
+    // ⚠ "처음부터 만들기"(빈 화면 or clear)일 때만 — 기존 배치에 추가 시엔 절대 건드리지 않음
     const boxes = els.filter(e => e.type === 'groupbox')
-    if (boxes.length >= 2) {
+    if (boxes.length >= 2 && (startedEmpty || didClear)) {
       const W = resolution.w
       const MARGIN = 30      // 캔버스 좌측 여백
       const GAP    = 20      // 패널 간격
@@ -1405,6 +1453,7 @@ export default function App() {
 
     patchActiveScreen(() => ({ elements: els, bindings: binds }))
     setSelectedId(null)
+    if (noSpaceItems.length) setPendingPlace(noSpaceItems)   // 빈 공간 없음 → 사용자가 영역 클릭해 배치
     if (tagAdds.length) setTags(prev => {
       const ids = new Set(prev.map(t => t.id))
       const fresh = tagAdds.filter(t => !ids.has(t.id))
@@ -1653,6 +1702,10 @@ export default function App() {
           onSave={() => saveProject({ name:projectName, resolution, devices, tags, screens, activeScreenId, symbols, recipeSets })}
           onOpenSymbols={() => setSymbolLibOpen(true)}
           onDeleteSymbol={deleteSymbol}
+          onSetSymbolCategory={setSymbolCategory}
+          symbolParts={symbolParts}
+          onAddSymbolPart={addSymbolPart}
+          onDeleteSymbolPart={deleteSymbolPart}
           onStartLineDraw={() => { setWireMode(false); setPenMode(true) }}
           onStartWireDraw={() => { setPenMode(false); setWireMode(true) }}
           onOpenRecipe={() => setRecipeOpen(true)}
@@ -1708,6 +1761,9 @@ export default function App() {
             onUngroup={ungroupSelected}
             onOpenStyleGallery={() => setStyleGalleryOpen(true)}
             onAddPanel={addStyledPanel}
+            pendingPlace={pendingPlace}
+            onPlaceAt={placePendingAt}
+            onCancelPlace={cancelPending}
           />
         </main>
 
