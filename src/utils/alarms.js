@@ -1,10 +1,11 @@
 // 활성 알람 스캔 — 태그의 명시적 알람 설정으로 현재 활성 알람 목록 생성
 //   · 아날로그: alarmHigh(상한)·alarmLow(하한), 상한 90% 근접=주의
 //   · BIT: alarmBit('on'=1일때 알람 / 'off'=0일때 알람)로 명시 지정한 것만 (스위치·램프와 구분)
-//   · 구역(area): tag.alarmArea 우선, 없으면 tag.utility(그룹)
+//   · 구역(area) = 태그의 그룹(utility)
 
+// 알람 구역 = 태그의 그룹(utility). 별도 구역 개념 없이 그룹으로 통일.
 export function tagAlarmArea(t) {
-  return String(t?.alarmArea || t?.utility || '').trim()
+  return String(t?.utility || '').trim()
 }
 
 // 빈값('')을 0으로 오인하지 않게 — 값이 있을 때만 숫자로

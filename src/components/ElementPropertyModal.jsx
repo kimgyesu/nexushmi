@@ -1432,13 +1432,13 @@ export default function ElementPropertyModal({
               <input value={element.label || ''} onChange={e => onUpdateElement(element.id, { label: e.target.value })}
                 className="w-full bg-[#1a202c] border border-[#2d3748] rounded px-2 py-1.5 text-[11px] text-[#e2e8f0] focus:outline-none focus:border-[#ef4444] mt-1" placeholder="알람" />
               <div className="mt-2">
-                <Label>표시 구역 (필터)</Label>
+                <Label>표시 그룹 (필터)</Label>
                 <select value={element.alarmArea || ''} onChange={e => onUpdateElement(element.id, { alarmArea: e.target.value })}
                   className="w-full bg-[#1a202c] border border-[#2d3748] rounded px-2 py-1.5 text-[11px] text-[#e2e8f0] focus:outline-none focus:border-[#ef4444] mt-1">
-                  <option value="">(전체 구역)</option>
+                  <option value="">(전체)</option>
                   {alarmAreas(tags).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
-                <p className="text-[9px] text-[#6b7280] mt-1 leading-relaxed">특정 구역만 표시하려면 선택. 구역은 <b className="text-[#94a3b8]">태그 편집 → 알람 구역</b>에서 지정합니다. (비우면 그룹명 사용)</p>
+                <p className="text-[9px] text-[#6b7280] mt-1 leading-relaxed">특정 <b className="text-[#94a3b8]">그룹</b>의 알람만 표시하려면 선택. 알람 구역 = 태그의 <b className="text-[#94a3b8]">그룹</b>입니다.</p>
               </div>
               <div className="mt-2">
                 <ColorPicker label="헤더 색상" value={element.headerColor || '#7f1d1d'} onChange={v => onUpdateElement(element.id, { headerColor: v })} />

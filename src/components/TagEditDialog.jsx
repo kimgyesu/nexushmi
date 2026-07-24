@@ -47,7 +47,6 @@ const fromTag = t => ({
   alarmHigh: t?.alarmHigh ?? '',
   alarmLow: t?.alarmLow ?? '',
   alarmHint: t?.alarmHint || '',
-  alarmArea: t?.alarmArea || '',
   alarmBit: t?.alarmBit || '',
   logEvent: !!t?.logEvent,
 })
@@ -138,7 +137,7 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
       writeMin: form.writeMin, writeMax: form.writeMax, writeRate: form.writeRate,
       writeHeartbeat: form.writeHeartbeat.trim(),
       alarmHigh: form.alarmHigh, alarmLow: form.alarmLow, alarmHint: form.alarmHint.trim(),
-      alarmArea: form.alarmArea.trim(), alarmBit: form.alarmBit, logEvent: form.logEvent,
+      alarmBit: form.alarmBit, logEvent: form.logEvent,
     }
   }
   function submit() {
@@ -385,10 +384,6 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
                         <input type="number" className={inp} value={form.alarmLow} onChange={e => set('alarmLow', e.target.value)} placeholder="예: 5" />
                       </div>
                     </>)}
-                    <div className="col-span-2">
-                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">알람 구역 (area) <span className="text-[#4a5568]">— 비우면 그룹({form.utility || '미지정'}) 사용. 알람 목록에서 구역별 필터</span></span>
-                      <input className={inp} value={form.alarmArea} onChange={e => set('alarmArea', e.target.value)} placeholder="예: 권취부 · 언코일부 · 유틸리티" />
-                    </div>
                     <div className="col-span-2">
                       <span className="text-[9px] text-[#7c8aa5] block mb-0.5">경보 시 안내 (원인·조치 — AI가 함께 표시)</span>
                       <input className={inp} value={form.alarmHint} onChange={e => set('alarmHint', e.target.value)} placeholder="예: 라인 얇음 — 토크 급증 시 끊김 위험, 장력·속도 확인" />

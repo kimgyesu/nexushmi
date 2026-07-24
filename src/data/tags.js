@@ -24,7 +24,6 @@ export const TAG_COLUMNS = [
   { key: 'min',       header: '최소',     width: 70,  aliases: ['min', '최소', '최소값', 'minvalue', 'lo'] },
   { key: 'max',       header: '최대',     width: 70,  aliases: ['max', '최대', '최대값', 'maxvalue', 'hi'] },
   { key: 'value',     header: '초기값',   width: 80,  aliases: ['value', '초기값', '현재값', 'val', '값'] },
-  { key: 'alarmArea', header: '알람구역', width: 90,  aliases: ['alarmarea', '알람구역', '구역', 'area', 'zone'] },
   { key: 'alarmHigh', header: '상한경보', width: 80,  aliases: ['alarmhigh', '상한경보', 'hialarm', 'hh', '상한'] },
   { key: 'alarmLow',  header: '하한경보', width: 80,  aliases: ['alarmlow', '하한경보', 'loalarm', 'll', '하한'] },
 ]
@@ -134,7 +133,7 @@ export function makeTag(p = {}) {
     ...(p.writeHeartbeat ? { writeHeartbeat: String(p.writeHeartbeat) } : {}),   // 워치독 하트비트 주소
     ...(p.alarmHigh != null && p.alarmHigh !== '' ? { alarmHigh: Number(p.alarmHigh) } : {}),   // 상한 경보값
     ...(p.alarmLow != null && p.alarmLow !== '' ? { alarmLow: Number(p.alarmLow) } : {}),       // 하한 경보값
-    ...(p.alarmArea ? { alarmArea: String(p.alarmArea) } : {}),   // 알람 구역(area) — 없으면 utility(그룹) 사용
+    // 알람 구역은 별도 필드 없이 그룹(utility) 사용
     // BIT 알람: 'on'=값 1일 때 알람, 'off'=값 0일 때 알람(정상신호 꺼짐), 그 외/없음=알람 아님(스위치·램프)
     ...(p.alarmBit === 'on' || p.alarmBit === 'off' ? { alarmBit: p.alarmBit } : {}),
     // 이벤트 로그: 이 비트의 ON/OFF 전환을 이력에 기록 (사람 조작 스위치용 — 부하 출력은 끄기)
