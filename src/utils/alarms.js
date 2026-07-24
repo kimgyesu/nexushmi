@@ -7,11 +7,14 @@ export function tagAlarmArea(t) {
   return String(t?.alarmArea || t?.utility || '').trim()
 }
 
+// 빈값('')을 0으로 오인하지 않게 — 값이 있을 때만 숫자로
+const numOrNaN = v => (v === '' || v == null) ? NaN : Number(v)
+
 // 태그가 알람 대상인지 (구역 목록·필터용)
 export function hasAlarmConfig(t) {
   if (!t) return false
   if (t.type === 'BIT') return t.alarmBit === 'on' || t.alarmBit === 'off'
-  return Number.isFinite(Number(t.alarmHigh)) || Number.isFinite(Number(t.alarmLow))
+  return Number.isFinite(numOrNaN(t.alarmHigh)) || Number.isFinite(numOrNaN(t.alarmLow))
 }
 
 // 현재 활성 알람 목록 — [{ tagId, area, desc, sev:'경보'|'주의', text, hint }]
@@ -31,7 +34,7 @@ export function scanAlarms(tags = []) {
       continue
     }
     const v = Number(t.value) || 0
-    const hi = Number(t.alarmHigh), lo = Number(t.alarmLow)
+    const hi = numOrNaN(t.alarmHigh), lo = numOrNaN(t.alarmLow)
     if (Number.isFinite(hi)) {
       if (v >= hi) out.push({ tagId: t.id, area, desc, sev: '경보', text: `${desc} ${v}${unit} — 상한 ${hi}${unit} 초과`, hint: t.alarmHint || '' })
       else if (v >= hi * 0.9) out.push({ tagId: t.id, area, desc, sev: '주의', text: `${desc} ${v}${unit} — 상한 근접`, hint: t.alarmHint || '' })

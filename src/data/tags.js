@@ -24,6 +24,9 @@ export const TAG_COLUMNS = [
   { key: 'min',       header: '최소',     width: 70,  aliases: ['min', '최소', '최소값', 'minvalue', 'lo'] },
   { key: 'max',       header: '최대',     width: 70,  aliases: ['max', '최대', '최대값', 'maxvalue', 'hi'] },
   { key: 'value',     header: '초기값',   width: 80,  aliases: ['value', '초기값', '현재값', 'val', '값'] },
+  { key: 'alarmArea', header: '알람구역', width: 90,  aliases: ['alarmarea', '알람구역', '구역', 'area', 'zone'] },
+  { key: 'alarmHigh', header: '상한경보', width: 80,  aliases: ['alarmhigh', '상한경보', 'hialarm', 'hh', '상한'] },
+  { key: 'alarmLow',  header: '하한경보', width: 80,  aliases: ['alarmlow', '하한경보', 'loalarm', 'll', '하한'] },
 ]
 
 // 기본(데모) 태그 — 디바이스/유틸리티 예시 포함

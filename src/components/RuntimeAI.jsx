@@ -57,12 +57,14 @@ function scanFindings(tags, prev) {
       else if (t.alarmBit === 'off' && v === 0) out.push({ sev: '경보', tagId: t.id, text: `${t.desc || t.id} 발생(OFF)`, hint })
     } else {
       const v = Number(t.value) || 0, max = Number(t.max)
-      // 명시적 상한/하한 경보 (예: 토크 — 끊김 전 경고). 상한의 90% 근접 시 주의
-      if (Number.isFinite(+t.alarmHigh)) {
-        if (v >= +t.alarmHigh) out.push({ sev: '경보', tagId: t.id, hint: t.alarmHint || '', text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 상한 경보(${+t.alarmHigh}${t.unit || ''}) 초과` })
-        else if (v >= +t.alarmHigh * 0.9) out.push({ sev: '주의', tagId: t.id, hint: t.alarmHint || '', text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 상한(${+t.alarmHigh}) 근접` })
+      // 명시적 상한/하한 경보 (예: 토크 — 끊김 전 경고). 상한의 90% 근접 시 주의. 빈값('')은 0 오인 방지
+      const aHi = (t.alarmHigh === '' || t.alarmHigh == null) ? NaN : Number(t.alarmHigh)
+      const aLo = (t.alarmLow === '' || t.alarmLow == null) ? NaN : Number(t.alarmLow)
+      if (Number.isFinite(aHi)) {
+        if (v >= aHi) out.push({ sev: '경보', tagId: t.id, hint: t.alarmHint || '', text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 상한 경보(${aHi}${t.unit || ''}) 초과` })
+        else if (v >= aHi * 0.9) out.push({ sev: '주의', tagId: t.id, hint: t.alarmHint || '', text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 상한(${aHi}) 근접` })
       }
-      if (Number.isFinite(+t.alarmLow) && v <= +t.alarmLow) out.push({ sev: '경보', tagId: t.id, hint: t.alarmHint || '', text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 하한 경보(${+t.alarmLow}${t.unit || ''}) 미만` })
+      if (Number.isFinite(aLo) && v <= aLo) out.push({ sev: '경보', tagId: t.id, hint: t.alarmHint || '', text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 하한 경보(${aLo}${t.unit || ''}) 미만` })
       if (Number.isFinite(max) && max > 0) {
         const r = v / max
         if (r >= 0.95) out.push({ sev: '경보', tagId: t.id, text: `${t.desc || t.id} ${numf(v)}${t.unit || ''} — 상한 ${max}의 ${Math.round(r * 100)}%`, hint })

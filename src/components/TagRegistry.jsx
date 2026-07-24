@@ -127,7 +127,7 @@ function Cell({ tag, col, index, devices, onChange }) {
     )
   }
 
-  const isNum = ['min', 'max', 'value', 'decimals', 'digits'].includes(col.key)
+  const isNum = ['min', 'max', 'value', 'decimals', 'digits', 'alarmHigh', 'alarmLow'].includes(col.key)
   return (
     <input type={isNum ? 'number' : 'text'} value={value} spellCheck={false}
       onChange={e => onChange(index, { [col.key]: e.target.value })}
