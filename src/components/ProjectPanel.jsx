@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   ChevronRight, ChevronDown, Monitor, Layers, LayoutTemplate,
   AppWindow, Plus, Trash2, Pencil, Check, X,
-  Settings, Package, Hash, Gauge, Activity,
+  Settings, Package, Hash, Gauge, Activity, Bell,
   FolderOpen, Folder, FilePlus, Copy, Save, Cpu, Maximize2, Tag, Type, RectangleHorizontal, Shapes,
   Server, Globe, HardDrive, Usb, Wifi, Database, Share2, FlaskConical, Clock,
 } from 'lucide-react'
@@ -580,6 +580,7 @@ const PALETTE_ITEMS = [
   { type:'gauge',    label:'Gauge',        color:'#a78bfa', icon: Gauge },
   { type:'bar',      label:'트렌드',        color:'#06b6d4', icon: Activity },
   { type:'recipetable', label:'레시피 표',  color:'#4ade80', icon: FlaskConical },
+  { type:'alarmtable', label:'알람 목록',   color:'#ef4444', icon: Bell },
   { type:'text',     label:'텍스트 라벨',  color:'#e2e8f0', icon: Type },
   { type:'groupbox', label:'그룹 박스',    color:'#00e5ff', icon: RectangleHorizontal },
   { type:'shape',    label:'도형',         color:'#f472b6', icon: Shapes },

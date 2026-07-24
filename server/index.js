@@ -72,6 +72,25 @@ const insertEvents = db.transaction((rows) => {
   for (const r of rows) insertEvent.run(r.ts ?? Date.now(), r.type ?? 'system', r.level ?? 'info', r.tagId ?? '', r.message ?? '', r.value ?? null)
 })
 
+// ── 보존기간(retention) — 오래된 이력 자동 삭제 ──
+//   이벤트(로그): 기본 400일(1년+). 샘플(추이): 기본 90일(2초 간격이라 대량 → 짧게).
+//   env로 조정: NEXUSHMI_EVENT_DAYS, NEXUSHMI_SAMPLE_DAYS
+const EVENT_DAYS = Math.max(1, Number(process.env.NEXUSHMI_EVENT_DAYS) || 400)
+const SAMPLE_DAYS = Math.max(1, Number(process.env.NEXUSHMI_SAMPLE_DAYS) || 90)
+const delOldEvents = db.prepare('DELETE FROM events WHERE ts < ?')
+const delOldSamples = db.prepare('DELETE FROM samples WHERE ts < ?')
+function purgeOld() {
+  try {
+    const now = Date.now()
+    const e = delOldEvents.run(now - EVENT_DAYS * 86400000).changes
+    const s = delOldSamples.run(now - SAMPLE_DAYS * 86400000).changes
+    if (e || s) console.log(`[NexusHMI] 이력 정리: 이벤트 ${e}행·샘플 ${s}행 삭제 (보존 이벤트 ${EVENT_DAYS}일 / 샘플 ${SAMPLE_DAYS}일)`)
+  } catch (err) { console.warn('[NexusHMI] 이력 정리 실패:', err.message) }
+}
+console.log(`[NexusHMI] 이력 보존기간: 이벤트 ${EVENT_DAYS}일 · 샘플 ${SAMPLE_DAYS}일`)
+purgeOld()                              // 시작 시 1회
+setInterval(purgeOld, 24 * 3600 * 1000) // 이후 하루 1회
+
 // ── 앱 ──
 const app = express()
 app.use(cors())

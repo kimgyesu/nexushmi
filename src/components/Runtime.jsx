@@ -148,6 +148,33 @@ export default function Runtime() {
   // 데이터 로거 — 실행 중 태그 이력 기록 (범용 보고서의 실데이터 근거)
   const loggerRef = useRef(createLogger())
   const tagsRef = useRef(tags); tagsRef.current = tags
+
+  // ── 비트 ON/OFF 이력 로깅 — "이벤트 로그 기록" 켠 태그만 (부하 출력은 끄면 노이즈 제외) ──
+  const recentOpRef = useRef(new Map())   // 조작(사람) 표시 → 조작/자동 라벨
+  const prevBitsRef = useRef(null)
+  useEffect(() => {
+    const prev = prevBitsRef.current
+    const now = Date.now()
+    if (prev === null) {   // 첫 실행: 초기값만 저장(로그 안 함)
+      const init = {}
+      for (const t of tags) if (t.type === 'BIT' && t.logEvent) init[t.id] = Number(t.value) === 1 ? 1 : 0
+      prevBitsRef.current = init
+      return
+    }
+    const batch = []
+    for (const t of tags) {
+      if (t.type !== 'BIT' || !t.logEvent) continue
+      const v = Number(t.value) === 1 ? 1 : 0
+      if (prev[t.id] === undefined) { prev[t.id] = v; continue }
+      if (prev[t.id] === v) continue
+      prev[t.id] = v
+      const opAt = recentOpRef.current.get(t.id)
+      const src = (opAt && now - opAt < 1500) ? '조작' : '자동'
+      batch.push({ ts: now, type: 'operate', tagId: t.id, value: v, message: `${t.desc || t.id} ${v ? 'ON' : 'OFF'} (${src})` })
+    }
+    if (batch.length) postEvents(batch)
+  }, [tags])
+
   useEffect(() => {
     const id = setInterval(() => loggerRef.current.sample(tagsRef.current, Date.now()), 2000)
     return () => clearInterval(id)
@@ -272,24 +299,21 @@ export default function Runtime() {
   }
 
   function setBit(tagId, v) {
+    recentOpRef.current.set(tagId, Date.now())   // 조작 표시 (로그 라벨 조작/자동)
     setTags(prev => prev.map(t => t.id === tagId ? { ...t, value: v } : t))
     plcWriteIfReal(tagId, v)
   }
 
-  // BIT 비트 조작 (behavior별) — wId: 쓰기 태그
+  // BIT 비트 조작 (behavior별) — wId: 쓰기 태그. 로그 기록은 값 전환 감지 이펙트가 "로그 켠 태그"만 처리.
   function operateBit(wId, wtag, behavior) {
-    const label = wtag.desc || wId
-    if (behavior === 'on') {
-      setBit(wId, 1); postEvents({ type: 'operate', tagId: wId, value: 1, message: `${label} ON (조작)` })
-    } else if (behavior === 'off') {
-      setBit(wId, 0); postEvents({ type: 'operate', tagId: wId, value: 0, message: `${label} OFF (조작)` })
-    } else if (behavior === 'momentary') {
-      setBit(wId, 1); postEvents({ type: 'operate', tagId: wId, value: 1, message: `${label} 모멘터리 ON (조작)` })
+    if (behavior === 'on') setBit(wId, 1)
+    else if (behavior === 'off') setBit(wId, 0)
+    else if (behavior === 'momentary') {
+      setBit(wId, 1)
       const up = () => { setBit(wId, 0); window.removeEventListener('pointerup', up) }
       window.addEventListener('pointerup', up)
     } else {
-      const nv = wtag.value === 1 ? 0 : 1
-      setBit(wId, nv); postEvents({ type: 'operate', tagId: wId, value: nv, message: `${label} ${nv ? 'ON' : 'OFF'} (토글 조작)` })
+      setBit(wId, wtag.value === 1 ? 0 : 1)
     }
   }
 

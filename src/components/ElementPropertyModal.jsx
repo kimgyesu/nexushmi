@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { playBeep } from '../utils/beep'
+import { alarmAreas } from '../utils/alarms'
 import {
   X, Tag, Link2, Shapes, ToggleRight, Trash2,
   RotateCw, ArrowUpDown, Droplets, Power, Move, Maximize2, MonitorPlay, Waves, Gauge, Type, FlaskConical,
@@ -1421,6 +1422,29 @@ export default function ElementPropertyModal({
               </div>
               <p className="text-[9px] text-[#6b7280] mt-2 leading-relaxed">
                 실행(런타임) 화면에서 <b className="text-[#94a3b8]">드롭다운으로 레시피 선택 → 적용</b> 하면 해당 레시피 값이 지정 주소로 다운로드됩니다.
+              </p>
+            </Section>
+          )}
+
+          {element.type === 'alarmtable' && (
+            <Section title="알람 목록" icon={FlaskConical} color="#ef4444">
+              <Label>제목</Label>
+              <input value={element.label || ''} onChange={e => onUpdateElement(element.id, { label: e.target.value })}
+                className="w-full bg-[#1a202c] border border-[#2d3748] rounded px-2 py-1.5 text-[11px] text-[#e2e8f0] focus:outline-none focus:border-[#ef4444] mt-1" placeholder="알람" />
+              <div className="mt-2">
+                <Label>표시 구역 (필터)</Label>
+                <select value={element.alarmArea || ''} onChange={e => onUpdateElement(element.id, { alarmArea: e.target.value })}
+                  className="w-full bg-[#1a202c] border border-[#2d3748] rounded px-2 py-1.5 text-[11px] text-[#e2e8f0] focus:outline-none focus:border-[#ef4444] mt-1">
+                  <option value="">(전체 구역)</option>
+                  {alarmAreas(tags).map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <p className="text-[9px] text-[#6b7280] mt-1 leading-relaxed">특정 구역만 표시하려면 선택. 구역은 <b className="text-[#94a3b8]">태그 편집 → 알람 구역</b>에서 지정합니다. (비우면 그룹명 사용)</p>
+              </div>
+              <div className="mt-2">
+                <ColorPicker label="헤더 색상" value={element.headerColor || '#7f1d1d'} onChange={v => onUpdateElement(element.id, { headerColor: v })} />
+              </div>
+              <p className="text-[9px] text-[#6b7280] mt-2 leading-relaxed">
+                태그에 <b className="text-[#94a3b8]">상한/하한 경보값</b>을 넣거나 <b className="text-[#94a3b8]">BIT 알람</b>(이름에 알람·경보·고장 등)을 만들면 여기에 자동으로 뜹니다.
               </p>
             </Section>
           )}

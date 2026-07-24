@@ -47,6 +47,9 @@ const fromTag = t => ({
   alarmHigh: t?.alarmHigh ?? '',
   alarmLow: t?.alarmLow ?? '',
   alarmHint: t?.alarmHint || '',
+  alarmArea: t?.alarmArea || '',
+  alarmBit: t?.alarmBit || '',
+  logEvent: !!t?.logEvent,
 })
 
 // ── I/O 어드레스 필드 (실 디바이스: 영역 드롭다운 재사용) ─────────────────────
@@ -135,6 +138,7 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
       writeMin: form.writeMin, writeMax: form.writeMax, writeRate: form.writeRate,
       writeHeartbeat: form.writeHeartbeat.trim(),
       alarmHigh: form.alarmHigh, alarmLow: form.alarmLow, alarmHint: form.alarmHint.trim(),
+      alarmArea: form.alarmArea.trim(), alarmBit: form.alarmBit, logEvent: form.logEvent,
     }
   }
   function submit() {
@@ -353,15 +357,37 @@ export default function TagEditDialog({ open, isNew, tag, groups = [], devices =
 
                 {/* 상한/하한 경보 임계값 (예: 토크 — 끊김 전 경고) */}
                 <div className="p-2.5 rounded" style={{ background: '#1a0e0e', border: '1px solid #7f1d1d' }}>
-                  <label className={lbl}>🚨 경보 임계값 <span className="text-[#4a5568] font-normal">(초과 시 능동 감시 알림 · 상한 90% 근접=주의)</span></label>
+                  <label className={lbl}>🚨 경보 설정 <span className="text-[#4a5568] font-normal">{form.type === 'BIT' ? '(디지털 알람 접점 지정)' : '(초과 시 능동 감시 알림 · 상한 90% 근접=주의)'}</span></label>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">상한 경보값</span>
-                      <input type="number" className={inp} value={form.alarmHigh} onChange={e => set('alarmHigh', e.target.value)} placeholder="예: 80" />
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">하한 경보값</span>
-                      <input type="number" className={inp} value={form.alarmLow} onChange={e => set('alarmLow', e.target.value)} placeholder="예: 5" />
+                    {form.type === 'BIT' ? (<>
+                      <div className="col-span-2">
+                        <span className="text-[9px] text-[#7c8aa5] block mb-0.5">디지털 알람 <span className="text-[#4a5568]">— 스위치·램프와 구분하려면 지정</span></span>
+                        <select className={inp} value={form.alarmBit || ''} onChange={e => set('alarmBit', e.target.value)}>
+                          <option value="">알람 아님 (스위치·램프 등 일반 접점)</option>
+                          <option value="on">🔴 ON(1)이 알람 — 고장·경보·트립 접점</option>
+                          <option value="off">🔴 OFF(0)이 알람 — 정상신호가 꺼지면 이상 (예: 운전중 접점 OFF)</option>
+                        </select>
+                      </div>
+                      <label className="col-span-2 flex items-center gap-2 cursor-pointer py-1">
+                        <input type="checkbox" checked={!!form.logEvent} onChange={e => set('logEvent', e.target.checked)}
+                          style={{ width: 14, height: 14, accentColor: '#22c55e' }} />
+                        <span className="text-[10px] text-[#cbd5e1]">📝 이벤트 로그 기록
+                          <span className="text-[9px] text-[#7c8aa5]"> — 이 스위치의 ON/OFF 시각을 이력에 남김 (젬마가 검색 · 부하 출력은 끄기)</span>
+                        </span>
+                      </label>
+                    </>) : (<>
+                      <div>
+                        <span className="text-[9px] text-[#7c8aa5] block mb-0.5">상한 경보값</span>
+                        <input type="number" className={inp} value={form.alarmHigh} onChange={e => set('alarmHigh', e.target.value)} placeholder="예: 80" />
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-[#7c8aa5] block mb-0.5">하한 경보값</span>
+                        <input type="number" className={inp} value={form.alarmLow} onChange={e => set('alarmLow', e.target.value)} placeholder="예: 5" />
+                      </div>
+                    </>)}
+                    <div className="col-span-2">
+                      <span className="text-[9px] text-[#7c8aa5] block mb-0.5">알람 구역 (area) <span className="text-[#4a5568]">— 비우면 그룹({form.utility || '미지정'}) 사용. 알람 목록에서 구역별 필터</span></span>
+                      <input className={inp} value={form.alarmArea} onChange={e => set('alarmArea', e.target.value)} placeholder="예: 권취부 · 언코일부 · 유틸리티" />
                     </div>
                     <div className="col-span-2">
                       <span className="text-[9px] text-[#7c8aa5] block mb-0.5">경보 시 안내 (원인·조치 — AI가 함께 표시)</span>

@@ -22,6 +22,7 @@ export const ELEMENT_TYPE_LABELS = {
   groupbox: '그룹 박스',
   shape:    '도형',
   recipetable: '레시피 표',
+  alarmtable: '알람 목록',
 }
 
 export const SHAPE_LIST = [
@@ -57,6 +58,7 @@ const GEOMETRY = {
   groupbox: { hw: 100, hh: 60 },
   shape:    { hw: 60, hh: 40 },
   recipetable: { hw: 220, hh: 50 },
+  alarmtable: { hw: 190, hh: 95 },
 }
 
 // 드롭 가능한 캔버스 요소 타입
@@ -107,6 +109,13 @@ export function createElement(type, x, y, id, tagId, label) {
     el.headerColor = '#1e40af'
     el.hw = 220; el.hh = 50
     el.label = ''
+  }
+  if (type === 'alarmtable') {
+    el.alarmArea = ''        // 필터 구역 (비우면 전체)
+    el.headerColor = '#7f1d1d'
+    el.hw = 190; el.hh = 95
+    el.label = '알람'
+    el.tagId = ''
   }
   if (type === 'wordlamp') {
     el.states = [

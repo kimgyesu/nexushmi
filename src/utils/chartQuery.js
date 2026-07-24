@@ -22,7 +22,7 @@ export function isReportQuery(text) {
   return REPORT_RE.test(text)
 }
 
-const LOG_RE = /로그|이벤트|기록(을|를|\s)?(검색|조회|찾|보여)|알람.*(조회|검색|찾|있었|이력|내역|기록)|이력.*(조회|검색)|무슨\s*일/i
+const LOG_RE = /로그|이벤트|기록(을|를|\s)?(검색|조회|찾|보여)|알람.*(조회|검색|찾|있었|이력|내역|기록)|이력.*(조회|검색)|무슨\s*일|언제.*(켜|껐|꺼|끄|on|off|작동|운전|정지|바뀌|눌)|몇\s*시.*(켜|껐|꺼|on|off|작동|운전|정지)|(켜졌|껐|꺼졌|눌).*(언제|몇\s*시|시간|기록)/i
 export function isLogQuery(text) {
   return LOG_RE.test(text)
 }

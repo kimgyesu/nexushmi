@@ -4,6 +4,7 @@ import { Maximize2, Grid3X3, ZoomIn, ZoomOut, RotateCcw, Trash2, X as XIcon, Gri
 import { formatTagValue } from '../data/tags'
 import { isSvgSymbol } from '../data/symbols'
 import { computeLayerStyle } from '../utils/svgNaming'
+import { scanAlarms } from '../utils/alarms'
 
 
 /* 배치 경계: 해상도 기반 (동적) */
@@ -1107,6 +1108,67 @@ function CanvasRecipeTable({ el, recipeSets = [], tags = [], selected, runtime, 
   )
 }
 
+// 알람 목록 표 — 활성 알람을 표로 표시 (구역 필터, 발생시각 추적)
+function CanvasAlarmTable({ el, tags = [], selected, onPointerDown, onDoubleClick, runtime }) {
+  const W = (el.hw ?? 190) * 2, H = (el.hh ?? 95) * 2
+  const area = el.alarmArea || ''
+  const cursor = onDoubleClick ? (selected ? 'move' : 'grab') : 'default'
+  const headBg = el.headerColor || '#7f1d1d'
+  const active = useMemo(() => {
+    const all = scanAlarms(tags)
+    return area ? all.filter(a => a.area === area) : all
+  }, [tags, area])
+
+  // 발생시각 추적 — 활성된 순간 기록, 해제되면 제거
+  const seenRef = useRef(new Map())
+  const [, force] = useState(0)
+  useEffect(() => {
+    const now = Date.now()
+    const keys = new Set(active.map(a => a.tagId + '|' + a.sev))
+    let changed = false
+    for (const a of active) { const k = a.tagId + '|' + a.sev; if (!seenRef.current.has(k)) { seenRef.current.set(k, now); changed = true } }
+    for (const k of [...seenRef.current.keys()]) if (!keys.has(k)) { seenRef.current.delete(k); changed = true }
+    if (changed) force(n => (n + 1) & 0xffff)
+  }, [active])
+  const hhmmss = t => new Date(t).toLocaleTimeString('ko', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const rows = active.map(a => ({ ...a, at: seenRef.current.get(a.tagId + '|' + a.sev) }))
+
+  return (
+    <g transform={`translate(${el.x}, ${el.y})`} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick} style={{ cursor }}>
+      {selected && <rect x={-W / 2 - 3} y={-H / 2 - 3} width={W + 6} height={H + 6} rx={6} fill="none" stroke="#00d4ff" strokeWidth="1.5" strokeDasharray="6 3" />}
+      <foreignObject x={-W / 2} y={-H / 2} width={W} height={H}>
+        <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#0b1220', border: '1px solid #3f1d2e', borderRadius: 6, overflow: 'hidden', fontFamily: "'Malgun Gothic',sans-serif", pointerEvents: runtime ? 'auto' : 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: headBg, flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>🚨 {el.label || '알람'}{area ? ` · ${area}` : ''}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: rows.length ? '#fecaca' : '#bbf7d0' }}>{rows.length ? `${rows.length}건` : '정상'}</span>
+          </div>
+          <div style={{ display: 'flex', fontSize: 9, color: '#64748b', padding: '2px 8px', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
+            <span style={{ width: 56 }}>시각</span>
+            <span style={{ width: 60 }}>구역</span>
+            <span style={{ flex: 1 }}>내용</span>
+            <span style={{ width: 32, textAlign: 'center' }}>등급</span>
+          </div>
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            {rows.length === 0
+              ? <div style={{ padding: '10px', fontSize: 10, color: '#4ade80', textAlign: 'center' }}>활성 알람 없음 · 정상</div>
+              : rows.map((a, i) => {
+                const isAlarm = a.sev === '경보'
+                return (
+                  <div key={a.tagId + i} style={{ display: 'flex', alignItems: 'center', fontSize: 9.5, padding: '2px 8px', borderBottom: '1px solid #131c2b', background: isAlarm ? 'rgba(239,68,68,0.08)' : 'transparent' }}>
+                    <span style={{ width: 56, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{a.at ? hhmmss(a.at) : '—'}</span>
+                    <span style={{ width: 60, color: '#7dd3fc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.area || '—'}</span>
+                    <span style={{ flex: 1, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.text}>{a.text}</span>
+                    <span style={{ width: 32, textAlign: 'center', fontWeight: 700, color: isAlarm ? '#f87171' : '#fbbf24' }}>{a.sev}</span>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      </foreignObject>
+    </g>
+  )
+}
+
 // ── 리렌더 최적화 (React.memo) ──
 //   HMI는 수치 반응·버튼 응답이 생명 → 값 안 바뀐 요소는 다시 그리지 않는다.
 //   콜백(onPointerDown 등)은 매 렌더 새로 생기지만 비교에서 무시 — 핸들러가 ref로 최신 상태를 읽으므로 안전.
@@ -1138,6 +1200,7 @@ export const RENDERERS = {
   shape:    memo(CanvasShape, eqShape),
   wire:     CanvasWire,                       // 멀티태그(flow) — memo 제외
   recipetable: CanvasRecipeTable,             // recipeSets+tags — memo 제외
+  alarmtable: CanvasAlarmTable,               // 전체 태그 스캔 — memo 제외
 }
 
 /* ── 윈도우 화면 팝업 오버레이 (RENDERERS 이후 정의로 참조 가능) ── */

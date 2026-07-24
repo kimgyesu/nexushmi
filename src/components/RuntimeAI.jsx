@@ -51,8 +51,10 @@ function scanFindings(tags, prev) {
   for (const t of tags) {
     const hint = t.alarmHint || ''
     if (t.type === 'BIT') {
-      const isAlarm = /알람|경보|고장|이상|비상|trip|fault|alarm|error/i.test(`${t.id} ${t.desc || ''}`)
-      if (isAlarm && Number(t.value) === 1) out.push({ sev: '경보', tagId: t.id, text: `${t.desc || t.id} 발생(ON)`, hint })
+      // 명시적으로 알람 지정한 접점만 (스위치·램프 제외)
+      const v = Number(t.value)
+      if (t.alarmBit === 'on' && v === 1) out.push({ sev: '경보', tagId: t.id, text: `${t.desc || t.id} 발생(ON)`, hint })
+      else if (t.alarmBit === 'off' && v === 0) out.push({ sev: '경보', tagId: t.id, text: `${t.desc || t.id} 발생(OFF)`, hint })
     } else {
       const v = Number(t.value) || 0, max = Number(t.max)
       // 명시적 상한/하한 경보 (예: 토크 — 끊김 전 경고). 상한의 90% 근접 시 주의
@@ -237,7 +239,7 @@ export default function RuntimeAI({ tags, onOpenChart, logger, demo }) {
   const healthRef = useRef(null)
   const [messages, setMessages] = useState([{
     role: 'assistant',
-    text: 'NexusAI 에이전트 (로컬 Gemma)입니다.\n· 상태/추세: "지금 알람 있어?", "3초 전 온도는?"\n· 그래프/엑셀: "온도 그래프", "주파수 1시간 엑셀로"\n· 보고서: "오늘 운전 보고서 작성해줘"\n· 로그검색: "오늘 알람 로그 보여줘", "조작 기록 조회"',
+    text: 'NexusAI 에이전트 (로컬 Gemma)입니다.\n· 상태/추세: "지금 알람 있어?", "3초 전 온도는?"\n· 그래프/엑셀: "온도 그래프", "주파수 1시간 엑셀로"\n· 보고서: "오늘 운전 보고서 작성해줘"\n· 로그검색: "오늘 알람 로그 보여줘"\n· 스위치 이력: "펌프 언제 켜졌어?", "오늘 조작 기록", "1번모터 ON/OFF 기록"',
     time: hhmm(),
   }])
   const [input, setInput] = useState('')
@@ -336,25 +338,35 @@ ${dataCtx}`
     const w = windowFromText(text, 24 * 3600000) // 기본 24시간
     let type
     if (/알람|경고|alarm/i.test(text)) type = 'alarm'
-    else if (/조작|운전|버튼|operate/i.test(text)) type = 'operate'
+    else if (/조작|버튼|스위치|켜|껐|꺼|끄|운전|정지|작동|on|off|operate/i.test(text)) type = 'operate'
     else if (/설정값|setpoint/i.test(text)) type = 'setpoint'
     setBusy(true)
-    const res = await getEvents({ from: w.from, to: w.to, type, limit: 300 })
+    const res = await getEvents({ from: w.from, to: w.to, type, limit: 500 })
     setBusy(false)
     if (!res) {
       setMessages(prev => [...prev, { role: 'assistant', text: '⚠ 로컬 서버 미연결.', time: hhmm() }])
       return
     }
-    const evs = res.events || []
+    let evs = res.events || []
+    // 특정 설비/태그 이름이 질문에 있으면 그 이벤트만 (예: "펌프 언제 켜졌어?")
+    const kws = [...new Set((tags || []).map(t => t.desc).filter(d => d && d.length >= 2 && text.includes(d)))]
+    if (kws.length) evs = evs.filter(e => kws.some(k => (e.message || '').includes(k)))
+    // ON/OFF 만 물으면 해당 방향으로 좁힘
+    const onlyOn = /(켜|on|작동|운전\b|기동)/i.test(text) && !/(껐|꺼|off|정지)/i.test(text)
+    const onlyOff = /(껐|꺼|off|정지)/i.test(text) && !/(켜|on|기동)/i.test(text)
+    if (onlyOn) evs = evs.filter(e => /ON/.test(e.message || ''))
+    else if (onlyOff) evs = evs.filter(e => /OFF/.test(e.message || ''))
+
+    const subj = kws.length ? kws.join('·') + ' ' : ''
     if (!evs.length) {
-      setMessages(prev => [...prev, { role: 'assistant', text: `🔎 ${w.label}${type ? ` (${type})` : ''} 기록이 없습니다.`, time: hhmm() }])
+      setMessages(prev => [...prev, { role: 'assistant', text: `🔎 ${w.label} ${subj}${type ? `(${type}) ` : ''}기록이 없습니다.`, time: hhmm() }])
       return
     }
-    const shown = evs.slice(0, 20)
+    const shown = evs.slice(0, 25)
     const icon = { alarm: '🔴', recover: '🟢', operate: '🔘', setpoint: '⚙️', system: 'ℹ️' }
     const lines = shown.map(e => `${icon[e.type] || '·'} ${new Date(e.ts).toLocaleString('ko')} ${e.message}`).join('\n')
     const more = evs.length > shown.length ? `\n… 외 ${evs.length - shown.length}건` : ''
-    setMessages(prev => [...prev, { role: 'assistant', text: `🔎 ${w.label}${type ? ` (${type})` : ''} 로그 ${evs.length}건\n${lines}${more}`, time: hhmm() }])
+    setMessages(prev => [...prev, { role: 'assistant', text: `🔎 ${w.label} ${subj}로그 ${evs.length}건\n${lines}${more}`, time: hhmm() }])
   }
 
   useEffect(() => { refreshModels() }, [])

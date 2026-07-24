@@ -131,6 +131,11 @@ export function makeTag(p = {}) {
     ...(p.writeHeartbeat ? { writeHeartbeat: String(p.writeHeartbeat) } : {}),   // 워치독 하트비트 주소
     ...(p.alarmHigh != null && p.alarmHigh !== '' ? { alarmHigh: Number(p.alarmHigh) } : {}),   // 상한 경보값
     ...(p.alarmLow != null && p.alarmLow !== '' ? { alarmLow: Number(p.alarmLow) } : {}),       // 하한 경보값
+    ...(p.alarmArea ? { alarmArea: String(p.alarmArea) } : {}),   // 알람 구역(area) — 없으면 utility(그룹) 사용
+    // BIT 알람: 'on'=값 1일 때 알람, 'off'=값 0일 때 알람(정상신호 꺼짐), 그 외/없음=알람 아님(스위치·램프)
+    ...(p.alarmBit === 'on' || p.alarmBit === 'off' ? { alarmBit: p.alarmBit } : {}),
+    // 이벤트 로그: 이 비트의 ON/OFF 전환을 이력에 기록 (사람 조작 스위치용 — 부하 출력은 끄기)
+    ...(p.logEvent ? { logEvent: true } : {}),
   }
 }
 
