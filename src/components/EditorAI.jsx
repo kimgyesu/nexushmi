@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Send, User, RefreshCw, Square, ImagePlus, X,
-  ShieldCheck, Wrench, AlertTriangle, Info, CheckCircle2, XCircle, Stethoscope } from 'lucide-react'
+  ShieldCheck, Wrench, AlertTriangle, Info, CheckCircle2, XCircle, Stethoscope, HelpCircle } from 'lucide-react'
 import { getClaudeHealth, postClaude } from '../utils/api'
 import { inspectScreen, inspectionSummary, diagnoseElement } from '../utils/inspect'
 import { useAccess } from '../auth/access'
@@ -18,6 +18,58 @@ const SCREEN_TYPE_DESC = {
   window: '팝업 다이얼로그',
   frame: '전체화면 공통 헤더/푸터',
 }
+
+// 편집기 AI가 지금 할 수 있는 모든 것 — 오프라인 즉시 안내
+const HELP_TEXT = `🤖 편집기 AI로 지금 할 수 있는 것
+
+말로 시키면 됩니다. 예시를 그대로 따라 하셔도 돼요.
+
+🖼 화면 만들기
+· "탱크 3개 모니터링 화면 만들어줘"
+· "등록된 태그로 표 형식 화면 구성해줘"
+· "리코일러 운전 대시보드 만들어줘"
+
+🧩 검증된 템플릿 (계산·제어 세트)
+· "언코일러 장력제어 넣어줘" · "리코일러 토크제어"
+  → 태그+수식+감시가 한 번에 (상단 🧩 템플릿 갤러리와 동일)
+
+🏷 태그
+· "속도 태그 만들어줘 실태그 D100"
+· 엑셀/CSV 표를 그대로 붙여넣기 → 태그·화면 자동 구성
+· "온도1~10 태그 한번에" (일괄 시퀀스)
+· "미연결 태그 채워줘"
+
+🎨 심볼·도형 그리기 (그래픽)
+· "펌프 그려줘" · "언코일러 그려서 회전 연결해줘"
+  → 금속 질감 SVG 심볼 생성 + 회전/레벨 애니메이션
+· "밸브 심볼 만들어줘"
+· 만든 심볼은 좌측 오브젝트 탭에서 파트별로 정리
+
+✏️ 요소 편집
+· "게이지 색 파란색으로" · "글자 크게"
+· "다 정렬해줘" · "표준 스타일로 통일해줘"
+· "전체 아래로 내려줘" · "전체 비우기"
+
+🔗 태그 연결(바인딩)
+· "이 램프에 운전 태그 연결해줘"
+· "빈 요소에 태그 자동으로 채워줘"
+
+🔍 검수·진단 (오프라인 즉시)
+· 아래 [화면 검수] → 미연결·겹침·오류 점검 + 원클릭 수정
+· 요소 선택 후 [선택 진단] 또는 "이거 왜 안 떠?"
+
+📐 도면·사진으로 시작
+· 사진/도면 📎 첨부 후 "파악해줘" → 단계별로 화면 제작
+
+🖥 화면·디바이스
+· "팝업 화면 추가해줘" · "알람 화면 만들어줘"
+· "LS PLC 디바이스 추가해줘"
+
+⚙️ 계산·제어 (고급)
+· "감길수록 속도 줄어드는 수식 만들어줘"
+· "이 값 PLC로 출력하고 예상↔실제 감시해줘"
+
+💡 팁: 안 되면 "이거 왜 안 돼?"라고 물어보세요. 원인을 짚어드립니다.`
 
 function buildSystem(ctx) {
   const {
@@ -872,7 +924,7 @@ export default function EditorAI({ tags, elements, screens, activeScreenId, devi
   const [model, setModel] = useState('')
   const [messages, setMessages] = useState([{
     role: 'assistant',
-    text: 'Claude 작화 보조입니다.\n\n· "와인더 라인 화면 만들어줘" → 즉시 생성\n· 태그 표(엑셀/CSV) 붙여넣기 → 화면 자동구성\n· 아래 "화면 검수" → 미연결·겹침·오류 점검 + 원클릭 수정\n· 도면 첨부 후 "파악해줘" → 단계별 작업',
+    text: 'Claude 작화 보조입니다.\n\n· "와인더 라인 화면 만들어줘" → 즉시 생성\n· 태그 표(엑셀/CSV) 붙여넣기 → 화면 자동구성\n· 도면 첨부 후 "파악해줘" → 단계별 작업\n\n❓ 뭘 할 수 있는지 모르겠다면 아래 [도움말] 버튼을 누르거나 "뭐 할 수 있어?"라고 물어보세요.',
     time: hhmm(),
   }])
   const [input, setInput] = useState('')
@@ -964,10 +1016,24 @@ export default function EditorAI({ tags, elements, screens, activeScreenId, devi
 
   // "이거 왜 안 돼" 류 = 선택 요소 진단 의도 (선택이 있을 때만)
   const DIAG_INTENT = /(왜\s*(안|못))|안\s*(떠|뜨|나와|나옴|켜|움직|되|돼|바뀌|변)|작동.*안|동작.*안|진단|이상해|고장|안\s*먹/
+  // 도움말 의도 — 로컬 즉시 응답 (API 불필요)
+  const HELP_INTENT = /^(도움말|help|\?|사용법|명령어|기능)\s*$|(뭐|무엇|어떤\s*것?|무슨).*(할\s*수\s*있|가능|기능|명령)|할\s*수\s*있는\s*(게|것|거|일)|어떻게\s*(써|쓰|사용|하)/i
+
+  // 지금 사용 가능한 모든 기능 안내 (오프라인 즉시)
+  function showHelp() {
+    setInput('')
+    setMessages(prev => [...prev, { role: 'assistant', text: HELP_TEXT, time: hhmm(), help: true }])
+  }
 
   async function send() {
     const text = input.trim()
     if ((!text && !attachment) || busy || pendingResult) return
+    // 도움말 요청 → 로컬 즉시 응답 (API 불필요, 오프라인 동작)
+    if (text && !attachment && HELP_INTENT.test(text)) {
+      setMessages(prev => [...prev, { role: 'user', text, time: hhmm() }])
+      showHelp()
+      return
+    }
     // 증상 신고 + 선택 요소 있음 → 로컬 진단 먼저 (즉시·오프라인). 심층은 진단패널의 버튼으로.
     if (text && !attachment && DIAG_INTENT.test(text) && (ctxRef.current.selectedIds?.length)) {
       setInput('')
@@ -1292,6 +1358,12 @@ ${lines || '(규칙 검수는 문제 없음)'}`
           style={{ background: '#0d0b1a', border: '1px solid #166534', color: '#86efac' }}
           title="선택한 요소가 왜 안 되는지 원인 진단">
           <Stethoscope size={12} /> 선택 진단
+        </button>
+        <button onClick={showHelp} disabled={busy}
+          className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-bold transition-colors disabled:opacity-40"
+          style={{ background: '#0d0b1a', border: '1px solid #1e40af', color: '#93c5fd' }}
+          title="지금 할 수 있는 모든 기능 보기">
+          <HelpCircle size={12} /> 도움말
         </button>
       </div>
 
