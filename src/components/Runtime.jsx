@@ -406,10 +406,10 @@ export default function Runtime() {
           ) : (
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded"
               style={plcOn ? { background: '#0f2018', border: '1px solid #166534' } : { background: '#2a1a0a', border: '1px solid #78350f' }}
-              title={plcOn ? `실 PLC 연결됨 · ${plcItems.length}개 태그 폴링 중` : 'PLC 연결 시도 중… (로컬 서버 실행 필요)'}>
+              title={plcOn ? `${plcDev?.name || 'PLC'} 연결됨 · ${plcItems.length}개 태그 폴링 중` : `${plcDev?.name || 'PLC'} 자동 연결 중… (로컬 서버 실행 필요)`}>
               <Cpu size={10} className={plcOn ? 'text-[#22c55e]' : 'text-[#f59e0b]'} />
               <span className={`text-[10px] font-mono ${plcOn ? 'text-[#22c55e]' : 'text-[#f59e0b]'}`}>
-                {plcOn ? `PLC ${plcItems.length}` : 'PLC…'}
+                {plcOn ? `${plcDev?.name ? plcDev.name + ' · ' : ''}PLC ${plcItems.length}` : '연결 중…'}
               </span>
             </div>
           ))}

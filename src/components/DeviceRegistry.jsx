@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Cpu, Plus, Trash2, X, Plug, Loader2, FileText, Lock } from 'lucide-react'
+import { Cpu, Plus, Trash2, X, FileText, Lock } from 'lucide-react'
 import { DEVICE_COLUMNS, DEVICE_PROTOCOLS, BAUD_RATES, PARITIES, isSerial, makeDevice } from '../data/devices'
 import { vendorsList, driversByVendor, getDriver, driverForDevice, isCustomDriver } from '../data/drivers'
-import { plcConnect, plcStatus, plcDisconnect } from '../utils/api'
+import { plcStatus } from '../utils/api'
 import { useAccess } from '../auth/access'
 import DriverEditor from './DriverEditor'
-
-const PLC_PREMIUM_MSG = '실장비 PLC 연결은 프리미엄 기능입니다.\n\n편집·시뮬레이션은 계속 무료로 사용하실 수 있어요.\n실제 PLC 연결이 필요하면 업그레이드를 문의해 주세요.'
 
 function Cell({ device, col, index, onChange }) {
   const value = device[col.key] ?? ''
@@ -70,74 +68,44 @@ function Cell({ device, col, index, onChange }) {
 }
 
 // 연결 버튼 (시리얼 디바이스만)
-function ConnectBtn({ device }) {
-  const [state, setState] = useState('idle') // idle | busy | ok | err
-  const [msg, setMsg] = useState('')
+// 연결 상태 표시 (버튼 아님) — 실제 연결은 런타임(RUN)에서 자동으로, 여기선 브리지 상태만 반영
+function ConnStatus({ device }) {
+  const [connected, setConnected] = useState(false)
   const access = useAccess()
-  const locked = !access.plc   // 무료 유저: 실장비 연결 불가 (편집·시뮬은 무료)
-
   const driver = driverForDevice(device)
   const serialDev = driver.conn === 'serial'
-  // 드라이버 프로토콜로 통신 방식 결정 (Modbus면 modbus, 그 외 LS는 xgt)
-  const protocol = /modbus/i.test(driver.protocol || '') ? 'modbus' : 'xgt'
-
-  // 서버의 실제 연결상태를 주기적으로 반영 (창 닫았다 열어도, 마운트 타이밍 무관하게 유지)
   const norm = v => String(v || '').toUpperCase().trim()
+
   useEffect(() => {
-    if (!serialDev || locked) return
+    if (!serialDev) return
     let alive = true
     const check = () => plcStatus().then(s => {
       if (!alive) return
-      // 서버가 연결돼 있고, 포트가 일치(또는 디바이스 포트가 비어있어 기본값으로 연결된 경우)
       const here = !!s?.connected && (!norm(device.port) || norm(s?.config?.path) === norm(device.port))
-      setState(prev => (prev === 'busy' ? prev : (here ? 'ok' : (prev === 'err' ? 'err' : 'idle'))))
-      if (here) setMsg('연결됨')
-    }).catch(() => { /* 서버 미실행 */ })
+      setConnected(here)
+    }).catch(() => { if (alive) setConnected(false) })
     check()
     const id = setInterval(check, 3000)
     return () => { alive = false; clearInterval(id) }
-  }, [device.port, serialDev, locked])
-
-  async function test() {
-    if (!serialDev) return
-    if (locked) { window.alert(PLC_PREMIUM_MSG); return }   // 무료 유저 게이트
-    if (state === 'ok') {   // 이미 연결됨 → 클릭 시 해제
-      setState('busy')
-      try { await plcDisconnect(); setState('idle'); setMsg('') }
-      catch (e) { setState('ok'); setMsg(e.message) }
-      return
-    }
-    setState('busy'); setMsg('')
-    try {
-      await plcConnect({
-        protocol,
-        port: device.port, baud: device.baud, station: device.station,
-        dataBits: device.dataBits, parity: device.parity, stopBits: device.stopBits,
-        lsMap: driver?.addr?.lsModbus || null,   // LS Modbus 매핑(M/D 자동변환)
-      })
-      setState('ok'); setMsg(`연결됨 (${protocol})`)
-    } catch (e) {
-      setState('err'); setMsg(e.message)
-    }
-  }
+  }, [device.port, serialDev])
 
   if (!serialDev) return <span className="text-[9px] text-[#4a5568]">—</span>
-  if (locked) return (
-    <button onClick={() => window.alert(PLC_PREMIUM_MSG)} title="실장비 연결은 프리미엄 기능 — 편집·시뮬레이션은 무료"
-      className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-colors"
+  if (!access.plc) return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold"
+      title="실장비 연결은 프리미엄 — 편집·시뮬레이션은 무료"
       style={{ background: '#2a1a08', color: '#fbbf24', border: '1px solid #a16207' }}>
       <Lock size={10} /> 프리미엄
-    </button>
+    </span>
   )
   return (
-    <button onClick={test} title={state === 'ok' ? '연결됨 — 클릭하면 해제' : (msg || '이 설정으로 PLC 연결 테스트')}
-      className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-colors"
-      style={state === 'ok' ? { background: '#14532d', color: '#22c55e', border: '1px solid #166534' }
-        : state === 'err' ? { background: '#450a0a', color: '#ef4444', border: '1px solid #7f1d1d' }
-          : { background: '#0f2444', color: '#00d4ff', border: '1px solid #1e40af' }}>
-      {state === 'busy' ? <Loader2 size={10} className="animate-spin" /> : <Plug size={10} />}
-      {state === 'ok' ? '연결됨' : state === 'err' ? '실패' : '연결'}
-    </button>
+    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-bold"
+      title={connected ? '실행 중 자동 연결됨' : 'RUN(실행) 시 자동 연결됩니다'}
+      style={connected
+        ? { background: '#14532d', color: '#22c55e', border: '1px solid #166534' }
+        : { background: '#1a202c', color: '#64748b', border: '1px solid #2d3748' }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: connected ? '#22c55e' : '#475569' }} />
+      {connected ? '연결됨' : '대기 (RUN 시 자동)'}
+    </span>
   )
 }
 
@@ -204,7 +172,7 @@ export default function DeviceRegistry({ open, devices, drivers = [], onClose, o
                     <th key={col.key} className="px-2 py-1.5 text-left text-[9px] font-bold text-[#4a5568] uppercase whitespace-nowrap"
                       style={{ borderBottom: '1px solid #2d3748', minWidth: col.width }}>{col.header}</th>
                   ))}
-                  <th className="px-2 py-1.5 text-left text-[9px] font-bold text-[#4a5568] uppercase" style={{ borderBottom: '1px solid #2d3748', width: 70 }}>연결</th>
+                  <th className="px-2 py-1.5 text-left text-[9px] font-bold text-[#4a5568] uppercase" style={{ borderBottom: '1px solid #2d3748', width: 110 }}>상태</th>
                   <th style={{ borderBottom: '1px solid #2d3748', width: 36 }} />
                 </tr>
               </thead>
@@ -217,7 +185,7 @@ export default function DeviceRegistry({ open, devices, drivers = [], onClose, o
                         <Cell device={device} col={col} index={i} onChange={onUpdateDevice} />
                       </td>
                     ))}
-                    <td className="px-1 py-1"><ConnectBtn device={device} /></td>
+                    <td className="px-1 py-1"><ConnStatus device={device} /></td>
                     <td className="px-1 py-1 text-center">
                       <button onClick={() => onDeleteDevice(i)} title="삭제"
                         className="p-1 rounded hover:bg-[#450a0a] text-[#4a5568] hover:text-[#ef4444] transition-colors">
@@ -234,7 +202,7 @@ export default function DeviceRegistry({ open, devices, drivers = [], onClose, o
         {/* 푸터 */}
         <div className="flex items-center px-4 h-10 bg-[#0d1117] border-t border-[#2d3748] flex-shrink-0">
           <span className="text-[9px] text-[#4a5568]">
-            프로토콜이 <span className="text-[#22c55e]">XGT Cnet (LS)</span>면 포트(COM)·국번·통신속도를 설정하고 <span className="text-[#00d4ff]">연결</span>로 테스트하세요. (데이터8·스톱1 기본)
+            프로토콜이 <span className="text-[#22c55e]">XGT Cnet (LS)</span>면 포트(COM)·국번·통신속도를 설정하세요. <span className="text-[#00d4ff]">RUN(실행) 시 자동 연결</span>됩니다. (데이터8·스톱1 기본)
           </span>
           <button onClick={onClose}
             className="ml-auto px-4 py-1.5 rounded text-[11px] font-bold text-white transition-colors"

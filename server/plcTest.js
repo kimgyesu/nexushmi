@@ -28,6 +28,11 @@ const addr = args.addr ?? '100'
 const type = (args.type || 'WORD').toUpperCase()
 const proto = (args.protocol || 'modbus').toLowerCase()
 const mgr = proto === 'xgt' ? plc : modbus   // 프로토콜별 매니저 (read/write/poll 공용 인터페이스)
+// --ls : LS XGB Modbus 매핑 적용 (M100·D100=읽기영역, M500·D500=쓰기영역). HMI와 동일하게 D/M 주소를 읽음.
+// M/D 주소를 쓰면 자동으로 켜짐 (명시적으로 --ls 없어도)
+const usesLsAddr = /^[md]\d+$/i.test(String(addr).trim())
+if (args.ls === undefined && usesLsAddr) args.ls = true
+if (args.ls) cfg.lsMap = { bitReadStart: 100, bitWriteStart: 500, wordReadStart: 100, wordWriteStart: 500 }
 
 // Modbus CRC16
 function crc16(buf) {

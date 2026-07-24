@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react'
 import { Maximize2, Grid3X3, ZoomIn, ZoomOut, RotateCcw, Trash2, X as XIcon, GripHorizontal, Pencil, Share2, Undo2, Redo2, Palette,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, AlignHorizontalSpaceAround, AlignVerticalSpaceAround } from 'lucide-react'
 import { formatTagValue } from '../data/tags'
@@ -1107,19 +1107,37 @@ function CanvasRecipeTable({ el, recipeSets = [], tags = [], selected, runtime, 
   )
 }
 
+// ── 리렌더 최적화 (React.memo) ──
+//   HMI는 수치 반응·버튼 응답이 생명 → 값 안 바뀐 요소는 다시 그리지 않는다.
+//   콜백(onPointerDown 등)은 매 렌더 새로 생기지만 비교에서 무시 — 핸들러가 ref로 최신 상태를 읽으므로 안전.
+const tagSig = t => t ? `${t.value}|${t.min}|${t.max}|${t.type}|${t.unit}|${t.decimals}` : '∅'
+const tagValOf = (id, arr) => { if (!id || !arr) return undefined; const t = arr.find(x => x.id === id); return t ? t.value : undefined }
+// 값 구동 단일태그(게이지·수치·램프·스위치·트렌드)
+const eqValue = (a, b) => a.el === b.el && a.selected === b.selected && tagSig(a.tag) === tagSig(b.tag)
+// 정적(텍스트·그룹박스)
+const eqStatic = (a, b) => a.el === b.el && a.selected === b.selected
+// 도형: 정적/애니(단일태그) + 흐름 라인(flow 태그값)
+const eqShape = (a, b) => {
+  if (a.el !== b.el || a.selected !== b.selected || tagSig(a.tag) !== tagSig(b.tag)) return false
+  const fe = a.el.flowEnableTag, fs = a.el.flowSpeedTag
+  if (fe && tagValOf(fe, a.tags) !== tagValOf(fe, b.tags)) return false
+  if (fs && tagValOf(fs, a.tags) !== tagValOf(fs, b.tags)) return false
+  return true
+}
+
 export const RENDERERS = {
-  symbol:   CanvasSymbol,
-  switch:   CanvasSwitch,
-  lamp:     CanvasLamp,
-  wordlamp: CanvasWordLamp,
-  gauge:    CanvasGauge,
-  numeric:  CanvasNumeric,
-  bar:      CanvasBar,
-  text:     CanvasText,
-  groupbox: CanvasGroupBox,
-  shape:    CanvasShape,
-  wire:     CanvasWire,
-  recipetable: CanvasRecipeTable,
+  symbol:   CanvasSymbol,                    // 멀티태그(svgBindings)·CSS애니 — memo 제외
+  switch:   memo(CanvasSwitch, eqValue),
+  lamp:     memo(CanvasLamp, eqValue),
+  wordlamp: memo(CanvasWordLamp, eqValue),
+  gauge:    memo(CanvasGauge, eqValue),
+  numeric:  memo(CanvasNumeric, eqValue),
+  bar:      memo(CanvasBar, eqValue),
+  text:     memo(CanvasText, eqStatic),
+  groupbox: memo(CanvasGroupBox, eqStatic),
+  shape:    memo(CanvasShape, eqShape),
+  wire:     CanvasWire,                       // 멀티태그(flow) — memo 제외
+  recipetable: CanvasRecipeTable,             // recipeSets+tags — memo 제외
 }
 
 /* ── 윈도우 화면 팝업 오버레이 (RENDERERS 이후 정의로 참조 가능) ── */
@@ -1272,6 +1290,10 @@ export default function ScadaCanvas({
   canvasElementsRef.current = canvasElements
   const selectedIdsRef = useRef(selectedIds)
   selectedIdsRef.current = selectedIds
+  // memo로 스킵된 요소의 콜백이 최신 상태를 읽도록 — 모드/선택을 ref로도 노출
+  const selectedIdRef = useRef(selectedId); selectedIdRef.current = selectedId
+  const penModeRef = useRef(penMode); penModeRef.current = penMode
+  const wireModeRef = useRef(wireMode); wireModeRef.current = wireMode
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
   const onSelectMultipleRef = useRef(onSelectMultiple)
@@ -1569,15 +1591,16 @@ export default function ScadaCanvas({
 
   function handleElementPointerDown(e, el) {
     e.stopPropagation()
+    const selectedId = selectedIdRef.current, selectedIds = selectedIdsRef.current   // memo-스킵 콜백 대비 최신값
     // 펜 모드 — 요소 위에서 시작해도 선 그리기
-    if (penMode) {
+    if (penModeRef.current) {
       const p = screenToSvg(e.clientX, e.clientY)
       penRef.current = { pts: [p], cur: p, shift: e.shiftKey }
       setPenPreview(`M${p.x},${p.y}`)
       return
     }
     // 연결선 모드 — 요소(심볼) 위 클릭 = 그 지점에 앵커 부착
-    if (wireMode) {
+    if (wireModeRef.current) {
       const p = screenToSvg(e.clientX, e.clientY)
       const hit = findAnchorNear(p.x, p.y, canvasElementsRef.current)
       const pos = hit ? { x: hit.x, y: hit.y } : p
