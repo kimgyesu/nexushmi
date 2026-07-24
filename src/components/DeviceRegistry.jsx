@@ -6,11 +6,74 @@ import { plcStatus } from '../utils/api'
 import { useAccess } from '../auth/access'
 import DriverEditor from './DriverEditor'
 
+// 통신방식 라벨
+const CONN_LABEL = { serial: 'RS-232 / 485', ethernet: '이더넷', virtual: '가상' }
+
+// 드라이버 선택 2단 패널 (제조사 → 기종/프로토콜) — CIMON/XGT 스타일
+function DriverPicker({ current, onPick, onClose }) {
+  const vendors = vendorsList()
+  const [vendor, setVendor] = useState(() => {
+    const cur = current ? getDriver(current) : null
+    return cur?.vendor || vendors.find(v => v !== '가상') || vendors[0] || ''
+  })
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div className="flex flex-col bg-[#0f1520] border border-[#2d3748] rounded-lg overflow-hidden shadow-2xl"
+        style={{ width: 'min(660px, 94vw)', height: 'min(480px, 88vh)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 px-4 h-11 bg-[#0d1117] border-b border-[#2d3748] flex-shrink-0">
+          <Cpu size={15} className="text-[#60a5fa]" />
+          <span className="text-[12px] font-bold text-[#e2e8f0]">드라이버 선택</span>
+          <span className="text-[10px] text-[#4a5568] ml-1">제조사 → 기종/프로토콜</span>
+          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-[#2d3748] text-[#4a5568] hover:text-[#e2e8f0]"><X size={15} /></button>
+        </div>
+        <div className="flex flex-1 min-h-0">
+          {/* 좌 — 제조사 */}
+          <div className="w-48 overflow-y-auto border-r border-[#2d3748]" style={{ background: '#0b0f18' }}>
+            {vendors.map(v => (
+              <button key={v} onClick={() => setVendor(v)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] transition-colors"
+                style={v === vendor
+                  ? { background: '#1e3a5f', color: '#93c5fd', borderLeft: '2px solid #3b82f6' }
+                  : { color: '#cbd5e1', borderLeft: '2px solid transparent' }}
+                onMouseEnter={e => { if (v !== vendor) e.currentTarget.style.background = '#141b28' }}
+                onMouseLeave={e => { if (v !== vendor) e.currentTarget.style.background = 'transparent' }}>
+                <span className="flex-1 truncate">{v}</span>
+                <span className="text-[9px] text-[#4a5568]">{driversByVendor(v).length}</span>
+              </button>
+            ))}
+          </div>
+          {/* 우 — 기종/프로토콜 */}
+          <div className="flex-1 overflow-y-auto p-2">
+            {driversByVendor(vendor).map(d => {
+              const sel = d.id === current
+              return (
+                <button key={d.id} onClick={() => { onPick(d.id); onClose() }}
+                  className="w-full flex flex-col gap-0.5 px-3 py-2 rounded text-left mb-1 transition-colors"
+                  style={sel ? { background: '#14532d', border: '1px solid #22c55e' } : { background: '#0f172a', border: '1px solid #1e2a4a' }}
+                  onMouseEnter={e => { if (!sel) e.currentTarget.style.borderColor = '#3b82f6' }}
+                  onMouseLeave={e => { if (!sel) e.currentTarget.style.borderColor = '#1e2a4a' }}>
+                  <span className="text-[12px] font-bold" style={{ color: sel ? '#4ade80' : '#7dd3fc' }}>{d.name}</span>
+                  <span className="text-[9.5px] text-[#64748b]">
+                    {d.protocol} · {CONN_LABEL[d.conn] || d.conn}
+                    {d.defaults?.baud ? ` · ${d.defaults.baud}bps` : ''}
+                  </span>
+                </button>
+              )
+            })}
+            {driversByVendor(vendor).length === 0 && <p className="text-[11px] text-[#4a5568] px-3 py-4">이 제조사의 드라이버가 없습니다.</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Cell({ device, col, index, onChange }) {
   const value = device[col.key] ?? ''
   const set = v => onChange(index, { [col.key]: v })
   const cls = 'w-full text-[10px] font-mono rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-[#e2e8f0] focus:outline-none focus:border-[#1e40af]'
   const serial = driverForDevice(device).conn === 'serial'
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // 디바이스명 = 드라이버 선택 (드라이버명·설정이 그대로 반영). 별도 드라이버 칸 없음
   if (col.key === 'name') {
@@ -18,15 +81,16 @@ function Cell({ device, col, index, onChange }) {
       const d = getDriver(id)
       onChange(index, d ? { driverId: id, name: d.name, kind: d.name, protocol: d.protocol, ...d.defaults } : { driverId: '', name: '' })
     }
+    const cur = device.driverId ? getDriver(device.driverId) : null
     return (
-      <select value={device.driverId || ''} onChange={e => selectDriver(e.target.value)} className={cls} style={{ color: '#7dd3fc', fontWeight: 700 }}>
-        <option value="" style={{ background: '#0f172a', color: '#64748b' }}>— 드라이버 선택 —</option>
-        {vendorsList().map(v => (
-          <optgroup key={v} label={v} style={{ background: '#0f172a', color: '#a78bfa' }}>
-            {driversByVendor(v).map(d => <option key={d.id} value={d.id} style={{ background: '#0f172a', color: '#e2e8f0' }}>{d.name}</option>)}
-          </optgroup>
-        ))}
-      </select>
+      <>
+        <button onClick={() => setPickerOpen(true)} title="클릭 → 제조사·기종 선택"
+          className="w-full text-[10px] font-mono font-bold rounded px-1.5 py-1 bg-[#0f172a] border border-[#1e2a4a] text-left hover:border-[#3b82f6] transition-colors truncate"
+          style={{ color: cur ? '#7dd3fc' : '#64748b' }}>
+          {cur ? cur.name : '— 드라이버 선택 ▾'}
+        </button>
+        {pickerOpen && <DriverPicker current={device.driverId} onPick={selectDriver} onClose={() => setPickerOpen(false)} />}
+      </>
     )
   }
 

@@ -32,7 +32,7 @@ export const DRIVERS = [
   { id: 'virtual', vendor: '가상', name: '가상 (시뮬레이션)', protocol: '시뮬레이션', conn: 'virtual',
     addr: { transform: 'raw', example: 'NB1 · ND1', hint: '비우면 자동(NB/ND)', validate: '^N[BD]\\d+$' }, defaults: {} },
 
-  { id: 'ls-xgt', vendor: 'LS산전', name: 'LS XGT (XGB/XGK) · Cnet/FEnet', protocol: 'XGT Cnet (LS)', conn: 'serial',
+  { id: 'ls-xgt', vendor: 'LS산전', name: 'LS XGT (XGB/XGK) · Cnet', protocol: 'XGT Cnet (LS)', conn: 'serial',
     addr: { transform: 'ls', bit: 'X', word: 'W', dword: 'D', areas: ['M', 'D', 'P', 'K', 'F', 'T', 'C', 'L', 'N', 'R', 'U', 'Z'], example: 'M0 → %MX0 · D100 → %DW100', hint: '영역+번호 (M0, D100)', validate: '^%[A-Z]+[XBWDL][0-9.]+$' },
     defaults: { baud: 115200, parity: 'none', station: 1 } },
 
